@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, CornerDownLeft } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface MessageComposerProps {
@@ -70,7 +70,7 @@ export function MessageComposer({
   }, []);
 
   return (
-    <div className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[var(--surface)] border-t border-[var(--border)] shrink-0">
+    <div className="p-2 sm:p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[var(--surface)] border-t border-[var(--border)] shrink-0">
       <div className="flex items-end gap-2 max-w-4xl mx-auto">
         <div className="flex-1 relative bg-[var(--background)] border border-[var(--border)] focus-within:border-[#7657E8] focus-within:ring-2 focus-within:ring-[#7657E8]/20 rounded-2xl transition-all">
           <textarea
@@ -79,9 +79,9 @@ export function MessageComposer({
             value={content}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder={disabled ? 'Conversation ended' : 'Write a message...'}
+            placeholder={disabled ? 'Conversation ended' : 'Type a message...'}
             disabled={disabled}
-            className="w-full px-4 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] bg-transparent resize-none focus:outline-none max-h-32 min-h-[42px]"
+            className="w-full px-3.5 py-2.5 text-base sm:text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] bg-transparent resize-none focus:outline-none max-h-32 min-h-[42px] leading-snug"
           />
         </div>
 
@@ -90,18 +90,11 @@ export function MessageComposer({
           onClick={handleSend}
           disabled={!content.trim() || disabled}
           size="icon"
-          className="h-[42px] w-[42px] rounded-2xl shrink-0"
+          className="h-[42px] w-[42px] rounded-2xl shrink-0 cursor-pointer active:scale-95 transition-transform"
           aria-label="Send message"
         >
           <Send className="w-4 h-4" />
         </Button>
-      </div>
-
-      <div className="hidden sm:flex items-center justify-between max-w-4xl mx-auto mt-2 px-1 text-[11px] text-[var(--text-muted)]">
-        <span className="flex items-center gap-1">
-          <CornerDownLeft className="w-3 h-3" /> Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line
-        </span>
-        <span>{content.length}/1000</span>
       </div>
     </div>
   );

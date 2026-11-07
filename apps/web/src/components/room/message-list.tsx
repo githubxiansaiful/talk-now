@@ -32,27 +32,29 @@ export function MessageList({ messages, currentMemberId }: MessageListProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
-      {messages.map((message, index) => {
-        const isOwn = message.isOwnMessage || message.memberId === currentMemberId;
-        const prevMessage = index > 0 ? messages[index - 1] : null;
+    <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+      <div className="min-h-full flex flex-col justify-end space-y-3">
+        {messages.map((message, index) => {
+          const isOwn = message.isOwnMessage || message.memberId === currentMemberId;
+          const prevMessage = index > 0 ? messages[index - 1] : null;
 
-        // Show sender header if sender changed or more than 3 minutes elapsed
-        const showSender =
-          !prevMessage ||
-          prevMessage.memberId !== message.memberId ||
-          new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime() > 180000;
+          // Show sender header if sender changed or more than 3 minutes elapsed
+          const showSender =
+            !prevMessage ||
+            prevMessage.memberId !== message.memberId ||
+            new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime() > 180000;
 
-        return (
-          <MessageItem
-            key={message.id || index}
-            message={message}
-            isOwnMessage={isOwn}
-            showSender={showSender}
-          />
-        );
-      })}
-      <div ref={bottomRef} className="h-1" />
+          return (
+            <MessageItem
+              key={message.id || index}
+              message={message}
+              isOwnMessage={isOwn}
+              showSender={showSender}
+            />
+          );
+        })}
+        <div ref={bottomRef} className="h-1" />
+      </div>
     </div>
   );
 }

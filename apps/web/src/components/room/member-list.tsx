@@ -1,5 +1,5 @@
 import { Member } from '@talknow/shared';
-import { Crown, User, Users } from 'lucide-react';
+import { Crown, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface MemberListProps {
@@ -77,12 +77,6 @@ export function MemberList({ members, currentMemberId, maxMembers }: MemberListP
             </div>
           );
         })}
-      </div>
-
-      {/* Bottom info */}
-      <div className="p-3 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
-        <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-        <span>No profiles stored permanently</span>
       </div>
     </div>
   );

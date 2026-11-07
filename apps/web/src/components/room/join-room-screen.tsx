@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Users, Clock, Sparkles, LogIn, ShieldCheck, Shuffle } from 'lucide-react';
+import { ArrowLeft, Users, Clock, LogIn, ShieldCheck, Shuffle } from 'lucide-react';
 import { AppLogo } from '@/components/common/app-logo';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,9 @@ export function JoinRoomScreen({
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
       <header className="border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <AppLogo size="sm" />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/"
               className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors"
@@ -70,20 +72,12 @@ export function JoinRoomScreen({
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <AppLogo size="sm" />
           </div>
-          <ThemeToggle />
         </div>
       </header>
 
       <main className="flex-1 max-w-md w-full mx-auto px-4 py-12 flex flex-col justify-center">
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 sm:p-8 shadow-sm">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#7657E8] mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            Join Invitation
-          </div>
-
           <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
             {roomName || `Room ${roomCode}`}
           </h1>

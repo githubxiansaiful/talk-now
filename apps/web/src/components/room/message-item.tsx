@@ -12,19 +12,19 @@ export function MessageItem({ message, isOwnMessage, showSender }: MessageItemPr
 
   return (
     <div
-      className={`flex gap-3 group transition-opacity ${
+      className={`flex gap-2 sm:gap-3 group transition-opacity ${
         isOwnMessage ? 'justify-end' : 'justify-start'
       }`}
     >
       {/* Avatar (only for other members when showSender is true) */}
       {!isOwnMessage && (
-        <div className="w-8 shrink-0 flex items-start">
+        <div className="w-7 sm:w-8 shrink-0 flex items-start">
           {showSender ? (
-            <div className="w-8 h-8 rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] text-[#7657E8] font-bold text-xs flex items-center justify-center shadow-xs">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] text-[#7657E8] font-bold text-xs flex items-center justify-center shadow-xs">
               {initial}
             </div>
           ) : (
-            <div className="w-8" />
+            <div className="w-7 sm:w-8" />
           )}
         </div>
       )}
@@ -54,7 +54,7 @@ export function MessageItem({ message, isOwnMessage, showSender }: MessageItemPr
 
         {/* Bubble */}
         <div
-          className={`p-3 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          className={`p-2.5 sm:p-3 text-sm leading-relaxed whitespace-pre-wrap break-words ${
             isOwnMessage
               ? 'bg-[#7657E8] text-white rounded-2xl rounded-tr-sm shadow-xs'
               : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl rounded-tl-sm shadow-xs'

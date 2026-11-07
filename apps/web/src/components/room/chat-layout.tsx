@@ -10,7 +10,7 @@ import { MessageComposer } from './message-composer';
 import { TypingIndicator } from './typing-indicator';
 import { RoomShareDialog } from './room-share-dialog';
 import { RoomSettingsDialog } from './room-settings-dialog';
-import { X, Sparkles, WifiOff } from 'lucide-react';
+import { X, WifiOff } from 'lucide-react';
 import { useSocket } from '@/hooks/use-socket';
 import { apiClient } from '@/lib/api-client';
 
@@ -235,7 +235,7 @@ export function ChatLayout({
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--background)]">
+    <div className="flex flex-col h-[100dvh] w-full max-w-full overflow-hidden bg-[var(--background)]">
       {/* Header */}
       <ChatHeader
         roomName={roomName}
@@ -302,20 +302,6 @@ export function ChatLayout({
 
         {/* Main Conversation Column */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)]">
-          {/* Subtle room banner */}
-          <div className="px-4 py-2 bg-[var(--surface)]/60 border-b border-[var(--border)] flex items-center justify-between text-xs text-[var(--text-secondary)] shrink-0">
-            <span className="flex items-center gap-1.5 truncate">
-              <Sparkles className="w-3.5 h-3.5 text-[#7657E8]" />
-              Encrypted in transit • Vanishes upon expiry
-            </span>
-            <button
-              onClick={() => setIsShareOpen(true)}
-              className="text-[#7657E8] font-semibold hover:underline shrink-0 ml-2 cursor-pointer"
-            >
-              Share Link
-            </button>
-          </div>
-
           {/* Message List */}
           <MessageList messages={messages} currentMemberId={currentUser.id} />
 
