@@ -8,6 +8,7 @@ export const SOCKET_EVENTS = {
   ROOM_MEMBERS_REQUEST: 'room:members:request',
   ROOM_CLOSE: 'room:close',
   ROOM_EXTEND: 'room:extend',
+  MESSAGE_REACT: 'message:react',
 
   // Server to Client
   ROOM_JOINED: 'room:joined',
@@ -17,6 +18,7 @@ export const SOCKET_EVENTS = {
   ROOM_MEMBERS: 'room:members',
   MESSAGE_NEW: 'message:new',
   MESSAGE_REJECTED: 'message:rejected',
+  MESSAGE_REACTION_UPDATE: 'message:reaction:update',
   TYPING_UPDATE: 'typing:update',
   ROOM_CLOSED: 'room:closed',
   ROOM_EXPIRED: 'room:expired',

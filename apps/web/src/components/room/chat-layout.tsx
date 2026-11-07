@@ -48,6 +48,149 @@ export function ChatLayout({
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
   const [isLeaveAlertOpen, setIsLeaveAlertOpen] = useState(false);
 
+  // Room expiry state (synced with server)
+  const [currentExpiresAt, setCurrentExpiresAt] = useState(expiresAt);
+
+  useEffect(() => {
+    setCurrentExpiresAt(expiresAt);
+  }, [expiresAt]);
+
+  // Toast notifications state
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const addToast = useCallback(
+    (toast: Omit<ToastItem, 'onDismiss'>, duration?: number) => {
+      setToasts((prev) => {
+        const filtered = prev.filter((t) => t.id !== toast.id);
+        const item: ToastItem = {
+          ...toast,
+          onDismiss: () => removeToast(toast.id),
+        };
+        return [...filtered, item];
+      });
+
+      if (duration && duration > 0) {
+        setTimeout(() => {
+          removeToast(toast.id);
+        }, duration);
+      }
+    },
+    [removeToast]
+  );
+
+  // Extend room duration handler
+  const handleExtendRoom = useCallback(
+    async (minutes: number = 30) => {
+      try {
+        if (socket && isConnected) {
+          socket.emit(SOCKET_EVENTS.ROOM_EXTEND, { roomCode, minutes });
+        } else {
+          const updated = await apiClient.extendRoom(roomCode, minutes);
+          setCurrentExpiresAt(updated.expiresAt);
+        }
+      } catch (err) {
+        console.error('[Room] Failed to extend duration:', err);
+      }
+    },
+    [socket, isConnected, roomCode]
+  );
+
+  // Expiration handler
+  const handleExpire = useCallback(() => {
+    sessionStorage.removeItem(`talknow_session_${roomCode}`);
+    router.push('/expired');
+  }, [roomCode, router]);
+
+  // 15-minute and 5-minute threshold warnings
+  const hasWarned15mRef = useRef(false);
+  const hasWarned5mRef = useRef(false);
+
+  useEffect(() => {
+    const checkExpiryWarnings = () => {
+      const now = Date.now();
+      const expiry = new Date(currentExpiresAt).getTime();
+      const remainingMs = expiry - now;
+
+      if (remainingMs <= 0) {
+        handleExpire();
+        return;
+      }
+
+      // 5-minute warning: remaining <= 5 minutes
+      if (remainingMs <= 5 * 60 * 1000) {
+        if (!hasWarned5mRef.current) {
+          hasWarned5mRef.current = true;
+          hasWarned15mRef.current = true;
+          removeToast('warning-15m');
+
+          addToast({
+            id: 'warning-5m',
+            type: 'warning-5m',
+            title: 'Only 5 minutes left!',
+            message:
+              'This room will expire in 5 minutes and delete all messages. Increase time to keep chatting.',
+            actions: [
+              {
+                label: '+15m',
+                variant: 'secondary',
+                onClick: () => handleExtendRoom(15),
+              },
+              {
+                label: '+30m',
+                variant: 'primary',
+                onClick: () => handleExtendRoom(30),
+              },
+              {
+                label: '+1h',
+                variant: 'secondary',
+                onClick: () => handleExtendRoom(60),
+              },
+            ],
+          });
+        }
+      }
+      // 15-minute warning: remaining <= 15 minutes and > 5 minutes
+      else if (remainingMs <= 15 * 60 * 1000) {
+        if (!hasWarned15mRef.current) {
+          hasWarned15mRef.current = true;
+
+          addToast({
+            id: 'warning-15m',
+            type: 'warning-15m',
+            title: '15 minutes left',
+            message:
+              'This room will expire soon. You can increase the time to keep chatting.',
+            actions: [
+              {
+                label: '+15m',
+                variant: 'secondary',
+                onClick: () => handleExtendRoom(15),
+              },
+              {
+                label: '+30m',
+                variant: 'primary',
+                onClick: () => handleExtendRoom(30),
+              },
+              {
+                label: '+1h',
+                variant: 'secondary',
+                onClick: () => handleExtendRoom(60),
+              },
+            ],
+          });
+        }
+      }
+    };
+
+    checkExpiryWarnings();
+    const interval = setInterval(checkExpiryWarnings, 3000);
+    return () => clearInterval(interval);
+  }, [currentExpiresAt, addToast, removeToast, handleExtendRoom, handleExpire]);
+
   // Close dialogs/drawer on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -202,6 +345,43 @@ export function ChatLayout({
       router.push('/expired');
     };
 
+    // Room time extended
+    const handleRoomTimeExtended = (data: { roomCode: string; expiresAt: string }) => {
+      setCurrentExpiresAt(data.expiresAt);
+
+      // Update sessionStorage
+      try {
+        const stored = sessionStorage.getItem(`talknow_session_${roomCode}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          parsed.expiresAt = data.expiresAt;
+          sessionStorage.setItem(`talknow_session_${roomCode}`, JSON.stringify(parsed));
+        }
+      } catch {}
+
+      // Reset warnings if new time is beyond thresholds
+      const remainingMs = new Date(data.expiresAt).getTime() - Date.now();
+      if (remainingMs > 15 * 60 * 1000) {
+        hasWarned15mRef.current = false;
+        hasWarned5mRef.current = false;
+        removeToast('warning-15m');
+        removeToast('warning-5m');
+      } else if (remainingMs > 5 * 60 * 1000) {
+        hasWarned5mRef.current = false;
+        removeToast('warning-5m');
+      }
+
+      addToast(
+        {
+          id: 'extend-success-' + Date.now(),
+          type: 'success',
+          title: 'Room Extended!',
+          message: 'Duration was successfully increased.',
+        },
+        4000
+      );
+    };
+
     // Message rejected (e.g. rate limit)
     const handleMessageRejected = (data: { error: string }) => {
       setRejectionNotice(data.error);
@@ -217,6 +397,7 @@ export function ChatLayout({
     socket.on(SOCKET_EVENTS.TYPING_UPDATE, handleTypingUpdate);
     socket.on(SOCKET_EVENTS.ROOM_EXPIRED, handleRoomExpired);
     socket.on(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
+    socket.on(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
 
     return () => {
       socket.off(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
@@ -228,8 +409,9 @@ export function ChatLayout({
       socket.off(SOCKET_EVENTS.TYPING_UPDATE, handleTypingUpdate);
       socket.off(SOCKET_EVENTS.ROOM_EXPIRED, handleRoomExpired);
       socket.off(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
+      socket.off(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
     };
-  }, [socket, roomCode, sessionToken, currentUser.id, router]);
+  }, [socket, roomCode, sessionToken, currentUser.id, router, addToast, removeToast]);
 
   // Handle sending a message
   const handleSendMessage = (content: string) => {
@@ -287,18 +469,16 @@ export function ChatLayout({
     router.push('/expired');
   };
 
-  const handleExpire = () => {
-    sessionStorage.removeItem(`talknow_session_${roomCode}`);
-    router.push('/expired');
-  };
-
   return (
     <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
+      {/* Expiry and Notification Toasts */}
+      <RoomToastContainer toasts={toasts} />
+
       {/* Header */}
       <ChatHeader
         roomName={roomName}
         roomCode={roomCode}
-        expiresAt={expiresAt}
+        expiresAt={currentExpiresAt}
         memberCount={members.filter((m) => m.isOnline).length}
         typingUsers={typingUsers}
         onOpenInvite={() => setIsShareOpen(true)}
@@ -416,8 +596,10 @@ export function ChatLayout({
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         isCreator={currentUser.isCreator}
+        expiresAt={currentExpiresAt}
         onLeaveRoom={handleLeaveRoom}
         onCloseRoom={handleCloseRoom}
+        onExtendRoom={handleExtendRoom}
       />
 
       {/* Leave Room Confirmation Alert Dialog (Mobile Top-Left Back Button) */}

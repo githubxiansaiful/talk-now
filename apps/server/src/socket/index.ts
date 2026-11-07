@@ -316,6 +316,38 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     );
 
     /**
+     * Message Reaction Event
+     */
+    socket.on(
+      SOCKET_EVENTS.MESSAGE_REACT,
+      async (data: { roomCode: string; messageId: string; emoji: string }) => {
+        try {
+          const { roomCode, messageId, emoji } = data || {};
+          const session = socketSessions.get(socket.id);
+          if (!session || session.roomCode !== roomCode) {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Unauthorized session' });
+            return;
+          }
+
+          if (!messageId || !emoji) return;
+
+          const updatedReactions = await messageService.toggleReaction({
+            messageId,
+            memberId: session.memberId,
+            emoji,
+          });
+
+          io.to(roomCode).emit(SOCKET_EVENTS.MESSAGE_REACTION_UPDATE, {
+            messageId,
+            reactions: updatedReactions,
+          });
+        } catch (error) {
+          console.error('[Socket] Error toggling reaction:', error);
+        }
+      }
+    );
+
+    /**
      * Disconnect Event
      */
     socket.on('disconnect', () => {

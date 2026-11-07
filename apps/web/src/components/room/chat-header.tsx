@@ -118,7 +118,14 @@ export function ChatHeader({
       {/* Right: Actions */}
       <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 ml-2">
         <div className="hidden sm:block">
-          <RoomExpiryLabel expiresAt={expiresAt} onExpire={onExpire} />
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title="Room duration (click to view settings or extend)"
+            className="hover:opacity-85 transition-opacity cursor-pointer"
+          >
+            <RoomExpiryLabel expiresAt={expiresAt} onExpire={onExpire} />
+          </button>
         </div>
 
         {/* Invite button */}

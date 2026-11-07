@@ -25,6 +25,12 @@ export interface Member {
   isOnline: boolean;
 }
 
+export interface MessageReactionSummary {
+  emoji: string;
+  count: number;
+  memberIds: string[];
+}
+
 export interface Message {
   id: string;
   roomId: string;
@@ -36,6 +42,7 @@ export interface Message {
   editedAt?: string | null;
   deletedAt?: string | null;
   isOwnMessage?: boolean;
+  reactions?: MessageReactionSummary[];
 }
 
 export interface TypingIndicatorPayload {

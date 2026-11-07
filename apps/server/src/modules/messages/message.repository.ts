@@ -1,5 +1,19 @@
 import { prisma } from '../../lib/prisma';
-import { Message } from '@talknow/shared';
+import { Message, MessageReactionSummary } from '@talknow/shared';
+
+function formatReactions(reactions: Array<{ emoji: string; memberId: string }>): MessageReactionSummary[] {
+  const map = new Map<string, string[]>();
+  for (const r of reactions) {
+    const list = map.get(r.emoji) || [];
+    list.push(r.memberId);
+    map.set(r.emoji, list);
+  }
+  return Array.from(map.entries()).map(([emoji, memberIds]) => ({
+    emoji,
+    count: memberIds.length,
+    memberIds,
+  }));
+}
 
 export class MessageRepository {
   async createMessage(data: {
@@ -18,6 +32,9 @@ export class MessageRepository {
         member: {
           select: { displayName: true },
         },
+        reactions: {
+          select: { emoji: true, memberId: true },
+        },
       },
     });
 
@@ -31,6 +48,7 @@ export class MessageRepository {
       createdAt: message.createdAt.toISOString(),
       editedAt: message.editedAt?.toISOString() || null,
       deletedAt: message.deletedAt?.toISOString() || null,
+      reactions: formatReactions(message.reactions || []),
     };
   }
 
@@ -48,6 +66,9 @@ export class MessageRepository {
         member: {
           select: { displayName: true },
         },
+        reactions: {
+          select: { emoji: true, memberId: true },
+        },
       },
     });
 
@@ -61,7 +82,49 @@ export class MessageRepository {
       createdAt: m.createdAt.toISOString(),
       editedAt: m.editedAt?.toISOString() || null,
       deletedAt: m.deletedAt?.toISOString() || null,
+      reactions: formatReactions(m.reactions || []),
     }));
+  }
+
+  async toggleReaction(
+    messageId: string,
+    memberId: string,
+    emoji: string
+  ): Promise<MessageReactionSummary[]> {
+    const existing = await prisma.reaction.findUnique({
+      where: {
+        messageId_memberId_emoji: {
+          messageId,
+          memberId,
+          emoji,
+        },
+      },
+    });
+
+    if (existing) {
+      await prisma.reaction.delete({
+        where: { id: existing.id },
+      });
+    } else {
+      await prisma.reaction.create({
+        data: {
+          messageId,
+          memberId,
+          emoji,
+        },
+      });
+    }
+
+    return this.getMessageReactions(messageId);
+  }
+
+  async getMessageReactions(messageId: string): Promise<MessageReactionSummary[]> {
+    const reactions = await prisma.reaction.findMany({
+      where: { messageId },
+      select: { emoji: true, memberId: true },
+    });
+
+    return formatReactions(reactions);
   }
 }
 

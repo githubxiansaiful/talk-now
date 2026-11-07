@@ -22,6 +22,17 @@ export class MessageService {
   async getRecentMessages(roomId: string, limit = 100): Promise<Message[]> {
     return messageRepository.getRecentMessages(roomId, limit);
   }
+
+  async toggleReaction(data: {
+    messageId: string;
+    memberId: string;
+    emoji: string;
+  }) {
+    if (!data.messageId || !data.memberId || !data.emoji) {
+      throw new Error('Missing reaction data');
+    }
+    return messageRepository.toggleReaction(data.messageId, data.memberId, data.emoji);
+  }
 }
 
 export const messageService = new MessageService();
