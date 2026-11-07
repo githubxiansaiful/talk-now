@@ -371,11 +371,11 @@ export function ChatLayout({
 
         {/* Main Conversation Column */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)] relative">
-          {/* Chat background wallpaper (dynamically switches between light and dark themes) */}
+          {/* Chat background wallpaper (transparent PNG automatically matching dark & light themes) */}
           <div
-            className="absolute inset-0 pointer-events-none bg-repeat transition-all duration-200"
+            className="absolute inset-0 pointer-events-none bg-repeat opacity-[0.06] invert dark:invert-0 transition-opacity"
             style={{
-              backgroundImage: 'var(--chat-bg)',
+              backgroundImage: `url('/chat-background.png')`,
               backgroundSize: '412px',
             }}
           />

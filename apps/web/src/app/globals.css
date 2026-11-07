@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --chat-bg: url('/white-chat-bg.png');
+    --chat-bg: url('/chat-background.png');
     --background: #F8F8FC;
     --surface: #FFFFFF;
     --surface-secondary: #F2F1F8;
@@ -28,7 +28,7 @@
   }
 
   .dark {
-    --chat-bg: url('/black-chat-bg.png');
+    --chat-bg: url('/chat-background.png');
     --background: #12121A;
     --surface: #1B1B26;
     --surface-secondary: #242433;
