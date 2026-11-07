@@ -17,6 +17,7 @@ interface ChatHeaderProps {
   onOpenInvite: () => void;
   onOpenSettings: () => void;
   onToggleMembers: () => void;
+  onBackClick?: () => void;
   onExpire?: () => void;
 }
 
@@ -28,6 +29,7 @@ export function ChatHeader({
   onOpenInvite,
   onOpenSettings,
   onToggleMembers,
+  onBackClick,
   onExpire,
 }: ChatHeaderProps) {
   const [remainingTime, setRemainingTime] = useState(() => formatRemainingTime(expiresAt));
@@ -52,13 +54,14 @@ export function ChatHeader({
     <header className="h-14 sm:h-16 border-b border-[var(--border)] bg-[var(--surface)] px-3 sm:px-6 flex items-center justify-between shrink-0 z-30">
       {/* Left: Back (mobile) / Logo (desktop) & Room Details */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-        <Link
-          href="/"
-          className="p-1.5 -ml-1 sm:hidden rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors shrink-0"
+        <button
+          type="button"
+          onClick={onBackClick}
+          className="p-1.5 -ml-1 sm:hidden rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors shrink-0 cursor-pointer"
           aria-label="Back to home"
         >
           <ArrowLeft className="w-5 h-5" />
-        </Link>
+        </button>
 
         <div className="hidden sm:block shrink-0">
           <AppLogo size="sm" />

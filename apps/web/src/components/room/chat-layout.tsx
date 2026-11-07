@@ -10,7 +10,8 @@ import { MessageComposer } from './message-composer';
 import { TypingIndicator } from './typing-indicator';
 import { RoomShareDialog } from './room-share-dialog';
 import { RoomSettingsDialog } from './room-settings-dialog';
-import { X, WifiOff } from 'lucide-react';
+import { X, WifiOff, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useSocket } from '@/hooks/use-socket';
 import { apiClient } from '@/lib/api-client';
 
@@ -44,16 +45,19 @@ export function ChatLayout({
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
+  const [isLeaveAlertOpen, setIsLeaveAlertOpen] = useState(false);
 
-  // Close mobile drawer on Escape
+  // Close dialogs/drawer on Escape
   useEffect(() => {
-    if (!isMobileMembersOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsMobileMembersOpen(false);
+      if (e.key === 'Escape') {
+        if (isLeaveAlertOpen) setIsLeaveAlertOpen(false);
+        else if (isMobileMembersOpen) setIsMobileMembersOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isMobileMembersOpen]);
+  }, [isLeaveAlertOpen, isMobileMembersOpen]);
 
   // Real-time state
   const [members, setMembers] = useState<Member[]>([
@@ -245,6 +249,7 @@ export function ChatLayout({
         onOpenInvite={() => setIsShareOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onToggleMembers={() => setIsMobileMembersOpen(true)}
+        onBackClick={() => setIsLeaveAlertOpen(true)}
         onExpire={handleExpire}
       />
 
@@ -267,38 +272,48 @@ export function ChatLayout({
           />
         </aside>
 
-        {/* Mobile slide-out members drawer */}
-        {isMobileMembersOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden flex">
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-              onClick={() => setIsMobileMembersOpen(false)}
-            />
+        {/* Mobile slide-out members drawer with smooth right-to-left enter & left-to-right exit transition */}
+        <div
+          className={`fixed inset-0 z-50 lg:hidden flex transition-all duration-300 ${
+            isMobileMembersOpen ? 'pointer-events-auto visible' : 'pointer-events-none invisible'
+          }`}
+        >
+          {/* Backdrop with fade in/out */}
+          <div
+            className={`fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+              isMobileMembersOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setIsMobileMembersOpen(false)}
+          />
 
-            <div className="relative ml-auto w-72 max-w-[80vw] h-full bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200">
-              <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
-                  Participants
-                </span>
-                <button
-                  onClick={() => setIsMobileMembersOpen(false)}
-                  className="p-1 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
-                  aria-label="Close member drawer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+          {/* Drawer panel with slide from right to left on enter, and slide back to right on exit */}
+          <div
+            className={`relative ml-auto w-72 max-w-[80vw] h-full bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col z-10 transform transition-transform duration-300 ease-in-out ${
+              isMobileMembersOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
+                Participants
+              </span>
+              <button
+                onClick={() => setIsMobileMembersOpen(false)}
+                className="p-1 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] cursor-pointer"
+                aria-label="Close member drawer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              <div className="flex-1 overflow-hidden">
-                <MemberList
-                  members={members}
-                  currentMemberId={currentUser.id}
-                  maxMembers={maxMembers}
-                />
-              </div>
+            <div className="flex-1 overflow-hidden">
+              <MemberList
+                members={members}
+                currentMemberId={currentUser.id}
+                maxMembers={maxMembers}
+              />
             </div>
           </div>
-        )}
+        </div>
 
         {/* Main Conversation Column */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)] relative">
@@ -349,6 +364,42 @@ export function ChatLayout({
         onLeaveRoom={handleLeaveRoom}
         onCloseRoom={handleCloseRoom}
       />
+
+      {/* Leave Room Confirmation Alert Dialog (Mobile Top-Left Back Button) */}
+      {isLeaveAlertOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95 duration-150 relative">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-[var(--text)] mb-1.5">Leave Conversation?</h3>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-6">
+              Are you sure you want to leave this room? You can only rejoin if the room is still active and you have the invite link.
+            </p>
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => setIsLeaveAlertOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                className="flex-1 text-xs font-semibold"
+                onClick={() => {
+                  setIsLeaveAlertOpen(false);
+                  handleLeaveRoom();
+                }}
+              >
+                Yes, Leave
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
