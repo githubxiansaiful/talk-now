@@ -301,7 +301,16 @@ export function ChatLayout({
         )}
 
         {/* Main Conversation Column */}
-        <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)]">
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)] relative">
+          {/* Chat background wallpaper */}
+          <div
+            className="absolute inset-0 pointer-events-none bg-repeat opacity-[0.07] invert dark:invert-0 dark:opacity-100 transition-opacity"
+            style={{
+              backgroundImage: `url('/conversation-bg.png')`,
+              backgroundSize: '412px',
+            }}
+          />
+
           {/* Message List */}
           <MessageList messages={messages} currentMemberId={currentUser.id} />
 
