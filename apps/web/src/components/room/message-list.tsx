@@ -24,7 +24,7 @@ export function MessageList({ messages, currentMemberId }: MessageListProps) {
       ref={containerRef}
       className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 overscroll-contain select-text"
     >
-      <div className="min-h-full flex flex-col justify-end space-y-2">
+      <div className="min-h-full flex flex-col justify-end space-y-2 max-w-[850px] mx-auto w-full">
         {/* WhatsApp-style security pill anchored above the conversation */}
         <div className="flex flex-col items-center my-3 select-none">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-secondary)]/90 border border-[var(--border)] text-[11px] text-[var(--text-secondary)] max-w-sm text-center shadow-2xs leading-snug">

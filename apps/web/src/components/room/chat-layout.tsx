@@ -292,21 +292,20 @@ export function ChatLayout({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[var(--surface-secondary)] dark:bg-[#07070B] overflow-hidden">
-      <div className="w-full max-w-[850px] h-[100dvh] flex flex-col bg-[var(--background)] sm:border-x sm:border-[var(--border)] sm:shadow-2xl relative overflow-hidden">
-        {/* Header */}
-        <ChatHeader
-          roomName={roomName}
-          roomCode={roomCode}
-          expiresAt={expiresAt}
-          memberCount={members.filter((m) => m.isOnline).length}
-          typingUsers={typingUsers}
-          onOpenInvite={() => setIsShareOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onToggleMembers={() => setIsMobileMembersOpen(true)}
-          onBackClick={() => setIsLeaveAlertOpen(true)}
-          onExpire={handleExpire}
-        />
+    <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
+      {/* Header */}
+      <ChatHeader
+        roomName={roomName}
+        roomCode={roomCode}
+        expiresAt={expiresAt}
+        memberCount={members.filter((m) => m.isOnline).length}
+        typingUsers={typingUsers}
+        onOpenInvite={() => setIsShareOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onToggleMembers={() => setIsMobileMembersOpen(true)}
+        onBackClick={() => setIsLeaveAlertOpen(true)}
+        onExpire={handleExpire}
+      />
 
       {/* Reconnecting banner if socket disconnects */}
       {!isConnected && (
@@ -455,7 +454,6 @@ export function ChatLayout({
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

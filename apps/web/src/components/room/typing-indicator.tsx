@@ -16,8 +16,8 @@ export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
   }
 
   return (
-    <div className="flex items-center gap-2 py-1 px-4 text-xs text-[var(--text-secondary)] relative z-20">
-      <div className="flex items-center gap-2 bg-[var(--surface)]/95 border border-[var(--border)] px-3.5 py-1.5 rounded-full shadow-xs backdrop-blur-xs">
+    <div className="py-1 px-4 text-xs text-[var(--text-secondary)] relative z-20 w-full max-w-[850px] mx-auto">
+      <div className="inline-flex items-center gap-2 bg-[var(--surface)]/95 border border-[var(--border)] px-3.5 py-1.5 rounded-full shadow-xs backdrop-blur-xs">
         <span className="font-semibold text-[var(--text)]">{text}</span>
         <span className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#7657E8] animate-typing-1" />

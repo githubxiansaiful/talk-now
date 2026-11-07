@@ -85,7 +85,7 @@ export function MessageComposer({
   return (
     <>
       <div className="p-2 sm:p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent shrink-0 relative z-20">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-[850px] mx-auto">
           {/* WhatsApp-style Pill Composer */}
           <div className="px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-1.5 rounded-full bg-[var(--surface)] dark:bg-[#202c33] border border-[var(--border)] dark:border-[#2a3942] shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#7657E8]/20 focus-within:border-[#7657E8]">
             {/* Left Button 1: Attach Files */}
