@@ -227,6 +227,44 @@ export class RoomRepository {
   }
 
   /**
+   * Extends room expiry time by additional minutes.
+   */
+  async extendRoom(code: string, minutes: number): Promise<Room> {
+    const room = await prisma.room.findUnique({
+      where: { code },
+    });
+
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    if (room.status !== 'ACTIVE') {
+      throw new Error(`Cannot extend room: room is ${room.status.toLowerCase()}`);
+    }
+
+    const baseTime = room.expiresAt.getTime() > Date.now() ? room.expiresAt.getTime() : Date.now();
+    const newExpiresAt = new Date(baseTime + minutes * 60 * 1000);
+
+    const updated = await prisma.room.update({
+      where: { id: room.id },
+      data: {
+        expiresAt: newExpiresAt,
+      },
+    });
+
+    return {
+      id: updated.id,
+      code: updated.code,
+      name: updated.name,
+      status: updated.status as RoomStatus,
+      maxMembers: updated.maxMembers,
+      createdAt: updated.createdAt.toISOString(),
+      expiresAt: updated.expiresAt.toISOString(),
+      closedAt: updated.closedAt ? updated.closedAt.toISOString() : null,
+    };
+  }
+
+  /**
    * Verifies member session token
    */
   async verifySession(roomId: string, sessionToken: string): Promise<Member | null> {

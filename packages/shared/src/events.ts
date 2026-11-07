@@ -7,6 +7,7 @@ export const SOCKET_EVENTS = {
   TYPING_STOP: 'typing:stop',
   ROOM_MEMBERS_REQUEST: 'room:members:request',
   ROOM_CLOSE: 'room:close',
+  ROOM_EXTEND: 'room:extend',
 
   // Server to Client
   ROOM_JOINED: 'room:joined',
@@ -19,6 +20,7 @@ export const SOCKET_EVENTS = {
   TYPING_UPDATE: 'typing:update',
   ROOM_CLOSED: 'room:closed',
   ROOM_EXPIRED: 'room:expired',
+  ROOM_TIME_EXTENDED: 'room:time_extended',
   PRESENCE_UPDATE: 'presence:update',
 } as const;
 
