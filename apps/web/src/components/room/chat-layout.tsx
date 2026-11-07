@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Member, Message, SOCKET_EVENTS } from '@talknow/shared';
 import { ChatHeader } from './chat-header';
@@ -10,6 +10,7 @@ import { MessageComposer } from './message-composer';
 import { TypingIndicator } from './typing-indicator';
 import { RoomShareDialog } from './room-share-dialog';
 import { RoomSettingsDialog } from './room-settings-dialog';
+import { RoomToastContainer, ToastItem } from './room-toast';
 import { X, WifiOff, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSocket } from '@/hooks/use-socket';

@@ -47,8 +47,9 @@ model Member {
   leftAt           DateTime?
   isCreator        Boolean   @default(false)
 
-  room             Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room             Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
   messages         Message[]
+  reactions        Reaction[]
 
   @@index([roomId])
   @@index([sessionTokenHash])
@@ -66,7 +67,23 @@ model Message {
 
   room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
   member      Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  reactions   Reaction[]
 
   @@index([roomId, createdAt])
+  @@index([memberId])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  memberId  String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, memberId, emoji])
+  @@index([messageId])
   @@index([memberId])
 }

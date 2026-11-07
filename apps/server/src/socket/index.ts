@@ -34,6 +34,12 @@ export function broadcastRoomExpired(roomCode: string): void {
   }
 }
 
+export function broadcastRoomTimeExtended(roomCode: string, expiresAt: string): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_TIME_EXTENDED, { roomCode, expiresAt });
+  }
+}
+
 export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
   const io = new SocketIOServer(httpServer, {
     cors: {
@@ -280,6 +286,34 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
         });
       }
     });
+
+    /**
+     * Extend Room Time Event
+     */
+    socket.on(
+      SOCKET_EVENTS.ROOM_EXTEND,
+      async (data: { roomCode: string; minutes?: number }) => {
+        try {
+          const { roomCode, minutes = 30 } = data || {};
+          const session = socketSessions.get(socket.id);
+          if (!session || session.roomCode !== roomCode) {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Unauthorized session' });
+            return;
+          }
+
+          const updated = await roomRepository.extendRoom(roomCode, minutes);
+          io.to(roomCode).emit(SOCKET_EVENTS.ROOM_TIME_EXTENDED, {
+            roomCode,
+            expiresAt: updated.expiresAt,
+          });
+        } catch (error) {
+          console.error('[Socket] Error extending room:', error);
+          socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
+            message: error instanceof Error ? error.message : 'Failed to extend room',
+          });
+        }
+      }
+    );
 
     /**
      * Disconnect Event

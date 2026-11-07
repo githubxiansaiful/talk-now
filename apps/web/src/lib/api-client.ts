@@ -107,4 +107,23 @@ export const apiClient = {
     }
     return json.data;
   },
+
+  /**
+   * Extends room expiry duration
+   */
+  async extendRoom(code: string, minutes: number = 30): Promise<Room> {
+    const res = await fetch(`${API_BASE_URL}/api/rooms/${code}/extend`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ minutes }),
+    });
+
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new ApiError(json.error || 'Failed to extend room', res.status);
+    }
+    return json.data;
+  },
 };

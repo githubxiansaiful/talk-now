@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { roomService } from './room.service';
 import { ZodError } from 'zod';
 import { createIpRateLimiter } from '../../middleware/rate-limit';
-import { broadcastRoomClosed } from '../../socket';
+import { broadcastRoomClosed, broadcastRoomTimeExtended } from '../../socket';
 
 const router = Router();
 
@@ -111,6 +111,28 @@ router.post('/:code/close', async (req: Request, res: Response) => {
     const message = error instanceof Error ? error.message : 'Failed to close room';
     const status = message.includes('Unauthorized') ? 401 : message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/rooms/:code/extend - Extend room duration
+ */
+router.post('/:code/extend', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params;
+    const minutes = Number(req.body?.minutes) || 30;
+    const result = await roomService.extendRoom(code, minutes);
+
+    // Broadcast room:time_extended event to all connected sockets
+    broadcastRoomTimeExtended(code, result.expiresAt);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to extend room';
+    res.status(400).json({ success: false, error: message });
   }
 });
 

@@ -1,25 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, LogOut, Trash2, Shield, AlertTriangle } from 'lucide-react';
+import { X, LogOut, Trash2, Shield, AlertTriangle, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatRemainingTime } from '@/lib/utils';
 
 interface RoomSettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   isCreator: boolean;
+  expiresAt?: string;
   onLeaveRoom: () => void;
   onCloseRoom: () => void;
+  onExtendRoom?: (minutes: number) => Promise<void> | void;
 }
 
 export function RoomSettingsDialog({
   isOpen,
   onClose,
   isCreator,
+  expiresAt,
   onLeaveRoom,
   onCloseRoom,
+  onExtendRoom,
 }: RoomSettingsDialogProps) {
   const [confirmAction, setConfirmAction] = useState<'close' | 'leave' | null>(null);
+  const [isExtending, setIsExtending] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -127,6 +133,52 @@ export function RoomSettingsDialog({
             </p>
 
             <div className="space-y-3">
+              {/* Extend Room Duration Section */}
+              {onExtendRoom && (
+                <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[var(--text)]">
+                      <Clock className="w-4 h-4 text-[#7657E8]" />
+                      Extend Duration
+                    </div>
+                    {expiresAt && (
+                      <span className="text-[11px] font-semibold text-[#7657E8] bg-[#7657E8]/10 px-2 py-0.5 rounded-md border border-[#7657E8]/20">
+                        {formatRemainingTime(expiresAt)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] mb-3">
+                    Add more time before this room expires and deletes all messages.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[15, 30, 60].map((mins) => (
+                      <Button
+                        key={mins}
+                        variant="secondary"
+                        size="sm"
+                        disabled={isExtending !== null}
+                        className="text-xs h-8 border border-[var(--border)] hover:border-[#7657E8]/50 hover:bg-[#7657E8]/10 hover:text-[#7657E8] transition-colors"
+                        onClick={async () => {
+                          try {
+                            setIsExtending(mins);
+                            await onExtendRoom(mins);
+                          } finally {
+                            setIsExtending(null);
+                          }
+                        }}
+                      >
+                        {isExtending === mins ? (
+                          <span className="animate-spin inline-block mr-1">◌</span>
+                        ) : (
+                          <Plus className="w-3 h-3 mr-0.5 text-[#7657E8]" />
+                        )}
+                        +{mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {isCreator && (
                 <div className="p-3.5 rounded-xl border border-[var(--danger-light)] bg-[var(--danger-light)]/40 dark:bg-rose-950/20">
                   <div className="flex items-center gap-2 text-xs font-bold text-[#DC4C4C] mb-1">
