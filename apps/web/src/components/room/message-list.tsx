@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { Message } from '@talknow/shared';
 import { MessageItem } from './message-item';
-import { MessageSquareDashed } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 interface MessageListProps {
   messages: Message[];
@@ -12,33 +12,38 @@ interface MessageListProps {
 
 export function MessageList({ messages, currentMemberId }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll on initial load and when new messages arrive
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  if (messages.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] mb-3">
-          <MessageSquareDashed className="w-6 h-6" />
-        </div>
-        <h4 className="text-sm font-bold text-[var(--text)]">No messages yet</h4>
-        <p className="mt-1 text-xs text-[var(--text-secondary)] max-w-xs">
-          Say hello and get the conversation started. Messages are ephemeral and will expire with the room.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-      <div className="min-h-full flex flex-col justify-end space-y-3">
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 overscroll-contain select-text"
+    >
+      <div className="min-h-full flex flex-col justify-end space-y-2">
+        {/* WhatsApp-style security pill anchored above the conversation */}
+        <div className="flex flex-col items-center my-3 select-none">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-secondary)]/90 border border-[var(--border)] text-[11px] text-[var(--text-secondary)] max-w-sm text-center shadow-2xs leading-snug">
+            <Lock className="w-3 h-3 text-[#7657E8] shrink-0" />
+            <span>Messages in this room are temporary and deleted upon expiry.</span>
+          </div>
+
+          <div className="mt-2.5">
+            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-semibold tracking-wider uppercase bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)] shadow-2xs">
+              Today
+            </span>
+          </div>
+        </div>
+
+        {/* Message Items */}
         {messages.map((message, index) => {
           const isOwn = message.isOwnMessage || message.memberId === currentMemberId;
           const prevMessage = index > 0 ? messages[index - 1] : null;
 
-          // Show sender header if sender changed or more than 3 minutes elapsed
           const showSender =
             !prevMessage ||
             prevMessage.memberId !== message.memberId ||
@@ -53,7 +58,8 @@ export function MessageList({ messages, currentMemberId }: MessageListProps) {
             />
           );
         })}
-        <div ref={bottomRef} className="h-1" />
+
+        <div ref={bottomRef} className="h-0.5" />
       </div>
     </div>
   );

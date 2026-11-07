@@ -235,7 +235,7 @@ export function ChatLayout({
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full max-w-full overflow-hidden bg-[var(--background)]">
+    <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
       {/* Header */}
       <ChatHeader
         roomName={roomName}

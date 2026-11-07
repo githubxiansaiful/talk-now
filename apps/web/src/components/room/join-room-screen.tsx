@@ -76,9 +76,9 @@ export function JoinRoomScreen({
         </div>
       </header>
 
-      <main className="flex-1 max-w-md w-full mx-auto px-4 py-12 flex flex-col justify-center">
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 sm:p-8 shadow-sm">
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
+      <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 sm:py-10 flex flex-col justify-center">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 sm:p-8 shadow-xs">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text)]">
             {roomName || `Room ${roomCode}`}
           </h1>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -86,7 +86,7 @@ export function JoinRoomScreen({
           </p>
 
           {/* Room info card */}
-          <div className="my-5 p-4 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] space-y-2">
+          <div className="my-4 sm:my-5 p-3.5 sm:p-4 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-[var(--text-secondary)]">Room Code:</span>
               <span className="font-mono font-semibold text-[var(--text)]">{roomCode}</span>
@@ -146,11 +146,6 @@ export function JoinRoomScreen({
               Join Conversation
             </Button>
           </form>
-
-          <div className="mt-6 pt-5 border-t border-[var(--border)] flex items-center gap-2 text-xs text-[var(--text-muted)]">
-            <ShieldCheck className="w-4 h-4 text-[#16A36A] shrink-0" />
-            <span>Messages are confidential to room members and wiped upon expiry.</span>
-          </div>
         </div>
       </main>
     </div>

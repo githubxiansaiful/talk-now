@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppLogo } from '@/components/common/app-logo';
 import { ThemeToggle } from '@/components/common/theme-toggle';
@@ -29,6 +30,24 @@ export function ChatHeader({
   onToggleMembers,
   onExpire,
 }: ChatHeaderProps) {
+  const [remainingTime, setRemainingTime] = useState(() => formatRemainingTime(expiresAt));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const expiry = new Date(expiresAt).getTime();
+      if (expiry <= now) {
+        setRemainingTime('Expired');
+        clearInterval(interval);
+        onExpire?.();
+      } else {
+        setRemainingTime(formatRemainingTime(expiresAt));
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt, onExpire]);
+
   return (
     <header className="h-14 sm:h-16 border-b border-[var(--border)] bg-[var(--surface)] px-3 sm:px-6 flex items-center justify-between shrink-0 z-30">
       {/* Left: Back (mobile) / Logo (desktop) & Room Details */}
@@ -50,26 +69,33 @@ export function ChatHeader({
         <button
           type="button"
           onClick={onToggleMembers}
-          className="text-left min-w-0 flex-1 lg:cursor-default"
+          className="text-left min-w-0 flex-1 flex items-center gap-2.5 lg:cursor-default"
         >
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <h1 className="text-sm sm:text-base font-bold text-[var(--text)] truncate leading-tight">
-              {roomName || `Room ${roomCode}`}
-            </h1>
-            <span className="hidden md:inline-flex text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
-              {roomCode}
-            </span>
+          {/* Mobile room icon / avatar like WhatsApp */}
+          <div className="w-8 h-8 rounded-full bg-[#7657E8]/10 text-[#7657E8] border border-[#7657E8]/20 flex items-center justify-center font-bold text-xs shrink-0 sm:hidden">
+            {(roomName || roomCode).charAt(0).toUpperCase()}
           </div>
 
-          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] mt-0.5 leading-none">
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A]" />
-              {memberCount} online
-            </span>
-            <span className="sm:hidden text-[var(--text-muted)]">•</span>
-            <span className="sm:hidden text-[#7657E8] font-medium">
-              {formatRemainingTime(expiresAt)}
-            </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h1 className="text-sm sm:text-base font-bold text-[var(--text)] truncate leading-tight">
+                {roomName || `Room ${roomCode}`}
+              </h1>
+              <span className="hidden md:inline-flex text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                {roomCode}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] mt-0.5 leading-none">
+              <span className="inline-flex items-center gap-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A]" />
+                {memberCount} online
+              </span>
+              <span className="sm:hidden text-[var(--text-muted)]">•</span>
+              <span className="sm:hidden text-[#7657E8] font-medium">
+                {remainingTime}
+              </span>
+            </div>
           </div>
         </button>
       </div>
