@@ -302,20 +302,11 @@ export function ChatLayout({
 
         {/* Main Conversation Column */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)] relative">
-          {/* Chat background wallpaper - Light Mode */}
+          {/* Chat background wallpaper (dynamically switches between light and dark themes) */}
           <div
-            className="absolute inset-0 pointer-events-none bg-repeat dark:hidden"
+            className="absolute inset-0 pointer-events-none bg-repeat transition-all duration-200"
             style={{
-              backgroundImage: `url('/white-chat-bg.png')`,
-              backgroundSize: '412px',
-            }}
-          />
-
-          {/* Chat background wallpaper - Dark Mode */}
-          <div
-            className="absolute inset-0 pointer-events-none bg-repeat hidden dark:block"
-            style={{
-              backgroundImage: `url('/black-chat-bg.png')`,
+              backgroundImage: 'var(--chat-bg)',
               backgroundSize: '412px',
             }}
           />

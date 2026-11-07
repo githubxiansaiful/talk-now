@@ -124,27 +124,8 @@ export function MessageComposer({
               className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 text-base sm:text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] resize-none py-2 px-1 max-h-32 min-h-[38px] leading-snug"
             />
 
-            {/* Right Action: Paper-plane send button when typing, or Mic when empty */}
-            {hasText ? (
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={disabled}
-                className="p-2 sm:p-2.5 rounded-full bg-[#7657E8] hover:bg-[#6545D5] text-white transition-transform active:scale-90 shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
-                aria-label="Send message"
-                title="Send message"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 256 256"
-                  fill="currentColor"
-                  className="w-4 h-4 ml-0.5"
-                  aria-hidden="true"
-                >
-                  <path d="M231.87,114l-168-95.89A16,16,0,0,0,40.92,37.34L71.55,128,40.92,218.67A16,16,0,0,0,56,240a16.15,16.15,0,0,0,7.93-2.1l167.92-96.05a16,16,0,0,0,.05-27.89ZM56,224a.56.56,0,0,0,0-.12L85.74,136H144a8,8,0,0,0,0-16H85.74L56.06,32.16A.46.46,0,0,0,56,32l168,95.83Z" />
-                </svg>
-              </button>
-            ) : (
+            {/* Mic button (voice messages coming soon) */}
+            {!hasText && (
               <button
                 type="button"
                 onClick={() => setComingSoonFeature('Voice messages')}
@@ -156,6 +137,30 @@ export function MessageComposer({
                 <Mic className="w-5 h-5" />
               </button>
             )}
+
+            {/* Paper-plane send button with user's custom SVG */}
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!hasText || disabled}
+              className={`p-2 sm:p-2.5 rounded-full transition-all shrink-0 cursor-pointer ${
+                hasText
+                  ? 'bg-[#7657E8] text-white hover:bg-[#6545D5] active:scale-90 shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-30 disabled:cursor-not-allowed'
+              }`}
+              aria-label="Send message"
+              title="Send message"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 256 256"
+                fill="currentColor"
+                className="w-4 h-4 ml-0.5"
+                aria-hidden="true"
+              >
+                <path d="M231.87,114l-168-95.89A16,16,0,0,0,40.92,37.34L71.55,128,40.92,218.67A16,16,0,0,0,56,240a16.15,16.15,0,0,0,7.93-2.1l167.92-96.05a16,16,0,0,0,.05-27.89ZM56,224a.56.56,0,0,0,0-.12L85.74,136H144a8,8,0,0,0,0-16H85.74L56.06,32.16A.46.46,0,0,0,56,32l168,95.83Z" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
