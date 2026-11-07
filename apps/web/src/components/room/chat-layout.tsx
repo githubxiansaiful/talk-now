@@ -213,12 +213,6 @@ export function ChatLayout({
   useEffect(() => {
     if (!socket) return;
 
-    // Join room when socket connects or on mount
-    socket.emit(SOCKET_EVENTS.ROOM_JOIN, {
-      roomCode,
-      sessionToken,
-    });
-
     // Room joined acknowledgment with initial server state
     const handleRoomJoined = (data: {
       room: { id: string; code: string; name: string };
@@ -350,6 +344,47 @@ export function ChatLayout({
           msg.id === data.messageId ? { ...msg, reactions: data.reactions } : msg
         )
       );
+    };
+
+    // Attach all socket listeners BEFORE emitting room join
+    socket.on(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
+    socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+    socket.on(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
+    socket.on(SOCKET_EVENTS.MESSAGE_REACTION_UPDATE, handleReactionUpdate);
+    socket.on(SOCKET_EVENTS.ROOM_MEMBER_JOINED, handleMemberJoined);
+    socket.on(SOCKET_EVENTS.PRESENCE_UPDATE, handlePresenceUpdate);
+    socket.on(SOCKET_EVENTS.ROOM_MEMBER_LEFT, handleMemberLeft);
+    socket.on(SOCKET_EVENTS.TYPING_UPDATE, handleTypingUpdate);
+    socket.on(SOCKET_EVENTS.ROOM_EXPIRED, handleRoomExpired);
+    socket.on(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
+    socket.on(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
+
+    // Join room when socket connects or on mount
+    const emitJoin = () => {
+      socket.emit(SOCKET_EVENTS.ROOM_JOIN, {
+        roomCode,
+        sessionToken,
+      });
+    };
+
+    if (socket.connected) {
+      emitJoin();
+    }
+    socket.on('connect', emitJoin);
+
+    return () => {
+      socket.off('connect', emitJoin);
+      socket.off(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
+      socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+      socket.off(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
+      socket.off(SOCKET_EVENTS.MESSAGE_REACTION_UPDATE, handleReactionUpdate);
+      socket.off(SOCKET_EVENTS.ROOM_MEMBER_JOINED, handleMemberJoined);
+      socket.off(SOCKET_EVENTS.PRESENCE_UPDATE, handlePresenceUpdate);
+      socket.off(SOCKET_EVENTS.ROOM_MEMBER_LEFT, handleMemberLeft);
+      socket.off(SOCKET_EVENTS.TYPING_UPDATE, handleTypingUpdate);
+      socket.off(SOCKET_EVENTS.ROOM_EXPIRED, handleRoomExpired);
+      socket.off(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
+      socket.off(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
     };
   }, [socket, roomCode, sessionToken, currentUser.id, router]);
 
