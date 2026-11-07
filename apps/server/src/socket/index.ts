@@ -288,7 +288,7 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     });
 
     /**
-     * Extend Room Time Event
+     * Extend Room Time Event (creator only)
      */
     socket.on(
       SOCKET_EVENTS.ROOM_EXTEND,
@@ -298,6 +298,11 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
           const session = socketSessions.get(socket.id);
           if (!session || session.roomCode !== roomCode) {
             socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Unauthorized session' });
+            return;
+          }
+
+          if (!session.isCreator) {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Only the room creator can extend the room duration' });
             return;
           }
 

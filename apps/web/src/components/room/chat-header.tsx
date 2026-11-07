@@ -14,6 +14,7 @@ interface ChatHeaderProps {
   roomCode: string;
   expiresAt: string;
   memberCount: number;
+  isCreator?: boolean;
   typingUsers?: string[];
   onOpenInvite: () => void;
   onOpenSettings: () => void;
@@ -27,6 +28,7 @@ export function ChatHeader({
   roomCode,
   expiresAt,
   memberCount,
+  isCreator,
   typingUsers,
   onOpenInvite,
   onOpenSettings,
@@ -34,23 +36,23 @@ export function ChatHeader({
   onBackClick,
   onExpire,
 }: ChatHeaderProps) {
-  const [remainingTime, setRemainingTime] = useState(() => formatRemainingTime(expiresAt));
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const expiry = new Date(expiresAt).getTime();
-      if (expiry <= now) {
-        setRemainingTime('Expired');
+      const currentNow = Date.now();
+      setNow(currentNow);
+      if (new Date(expiresAt).getTime() <= currentNow) {
         clearInterval(interval);
         onExpire?.();
-      } else {
-        setRemainingTime(formatRemainingTime(expiresAt));
       }
-    }, 15000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [expiresAt, onExpire]);
+
+  const isExpired = new Date(expiresAt).getTime() <= now;
+  const remainingTime = isExpired ? 'Expired' : formatRemainingTime(expiresAt);
 
   return (
     <header className="h-14 sm:h-16 border-b border-[var(--border)] bg-[var(--surface)] px-3 sm:px-6 flex items-center justify-between shrink-0 z-30">
@@ -121,7 +123,7 @@ export function ChatHeader({
           <button
             type="button"
             onClick={onOpenSettings}
-            title="Room duration (click to view settings or extend)"
+            title={isCreator ? 'Room duration (click to view settings or extend)' : 'Room duration'}
             className="hover:opacity-85 transition-opacity cursor-pointer"
           >
             <RoomExpiryLabel expiresAt={expiresAt} onExpire={onExpire} />

@@ -10,23 +10,24 @@ interface RoomExpiryLabelProps {
 }
 
 export function RoomExpiryLabel({ expiresAt, onExpire }: RoomExpiryLabelProps) {
-  const [remainingText, setRemainingText] = useState(() => formatRemainingTime(expiresAt));
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    // Keep ticking every second so countdown stays fresh and triggers onExpire on time
     const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const expiry = new Date(expiresAt).getTime();
-      if (expiry <= now) {
-        setRemainingText('Expired');
+      const currentNow = Date.now();
+      setNow(currentNow);
+      if (new Date(expiresAt).getTime() <= currentNow) {
         clearInterval(interval);
         onExpire?.();
-      } else {
-        setRemainingText(formatRemainingTime(expiresAt));
       }
-    }, 15000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [expiresAt, onExpire]);
+
+  const isExpired = new Date(expiresAt).getTime() <= now;
+  const remainingText = isExpired ? 'Expired' : formatRemainingTime(expiresAt);
 
   return (
     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">

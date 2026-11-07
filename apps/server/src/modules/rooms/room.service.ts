@@ -52,11 +52,11 @@ export class RoomService {
     return roomRepository.closeRoom(code, creatorToken);
   }
 
-  async extendRoom(code: string, minutes: number = 30): Promise<Room> {
+  async extendRoom(code: string, minutes: number = 30, creatorToken?: string): Promise<Room> {
     if (!minutes || minutes <= 0 || minutes > 1440) {
       throw new Error('Invalid extension minutes. Must be between 1 and 1440.');
     }
-    return roomRepository.extendRoom(code, minutes);
+    return roomRepository.extendRoom(code, minutes, creatorToken);
   }
 
   async verifyMemberSession(roomId: string, sessionToken: string): Promise<Member | null> {

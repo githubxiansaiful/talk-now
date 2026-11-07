@@ -55,21 +55,47 @@ export function ChatLayout({
     setCurrentExpiresAt(expiresAt);
   }, [expiresAt]);
 
-  // Extend room duration handler
+  // Extend room duration handler (Creator only)
   const handleExtendRoom = useCallback(
     async (minutes: number = 30) => {
+      if (!currentUser.isCreator) return;
       try {
-        if (socket && isConnected) {
-          socket.emit(SOCKET_EVENTS.ROOM_EXTEND, { roomCode, minutes });
-        } else {
-          const updated = await apiClient.extendRoom(roomCode, minutes);
+        const updated = await apiClient.extendRoom(roomCode, minutes, creatorToken);
+        if (updated?.expiresAt) {
           setCurrentExpiresAt(updated.expiresAt);
+          try {
+            const stored = sessionStorage.getItem(`talknow_session_${roomCode}`);
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              parsed.expiresAt = updated.expiresAt;
+              sessionStorage.setItem(`talknow_session_${roomCode}`, JSON.stringify(parsed));
+            }
+          } catch {}
+
+          // Reset warning thresholds if extended past thresholds
+          const remainingMs = new Date(updated.expiresAt).getTime() - Date.now();
+          if (remainingMs > 15 * 60 * 1000) {
+            hasWarned15mRef.current = false;
+            hasWarned5mRef.current = false;
+            toast.dismiss('warning-15m');
+            toast.dismiss('warning-5m');
+          } else if (remainingMs > 5 * 60 * 1000) {
+            hasWarned5mRef.current = false;
+            toast.dismiss('warning-5m');
+          }
+
+          toast.success('Room Extended!', {
+            description: `Room duration was increased by ${minutes >= 60 ? `${minutes / 60}h` : `${minutes}m`}.`,
+            duration: 4000,
+          });
         }
       } catch (err) {
         console.error('[Room] Failed to extend duration:', err);
+        const msg = err instanceof Error ? err.message : 'Failed to extend room';
+        toast.error('Extension Failed', { description: msg });
       }
     },
-    [socket, isConnected, roomCode]
+    [currentUser.isCreator, roomCode, creatorToken]
   );
 
   // Expiration handler
@@ -102,17 +128,22 @@ export function ChatLayout({
 
           toast.error('Only 5 minutes left!', {
             id: 'warning-5m',
-            description:
-              'This room will expire in 5 minutes and delete all messages. Increase time to keep chatting.',
+            description: currentUser.isCreator
+              ? 'This room will expire in 5 minutes and delete all messages. Increase time to keep chatting.'
+              : 'This room will expire in 5 minutes and delete all messages.',
             duration: 30000,
-            action: {
-              label: 'Extend +30m',
-              onClick: () => handleExtendRoom(30),
-            },
-            cancel: {
-              label: '+15m',
-              onClick: () => handleExtendRoom(15),
-            },
+            action: currentUser.isCreator
+              ? {
+                  label: 'Extend +30m',
+                  onClick: () => handleExtendRoom(30),
+                }
+              : undefined,
+            cancel: currentUser.isCreator
+              ? {
+                  label: '+15m',
+                  onClick: () => handleExtendRoom(15),
+                }
+              : undefined,
           });
         }
       }
@@ -123,17 +154,22 @@ export function ChatLayout({
 
           toast.warning('15 minutes left', {
             id: 'warning-15m',
-            description:
-              'This room will expire soon. You can increase the time to keep chatting.',
+            description: currentUser.isCreator
+              ? 'This room will expire soon. You can increase the time to keep chatting.'
+              : 'This room will expire soon.',
             duration: 20000,
-            action: {
-              label: 'Extend +30m',
-              onClick: () => handleExtendRoom(30),
-            },
-            cancel: {
-              label: '+15m',
-              onClick: () => handleExtendRoom(15),
-            },
+            action: currentUser.isCreator
+              ? {
+                  label: 'Extend +30m',
+                  onClick: () => handleExtendRoom(30),
+                }
+              : undefined,
+            cancel: currentUser.isCreator
+              ? {
+                  label: '+15m',
+                  onClick: () => handleExtendRoom(15),
+                }
+              : undefined,
           });
         }
       }
@@ -318,10 +354,13 @@ export function ChatLayout({
         toast.dismiss('warning-5m');
       }
 
-      toast.success('Room Extended!', {
-        description: 'Room duration was successfully increased.',
-        duration: 4000,
-      });
+      // If not creator, show info toast that creator extended the conversation
+      if (!currentUser.isCreator) {
+        toast.info('Room Extended', {
+          description: 'The room creator extended the conversation time.',
+          duration: 4000,
+        });
+      }
     };
 
     // Message rejected (e.g. rate limit)
@@ -462,6 +501,7 @@ export function ChatLayout({
         roomCode={roomCode}
         expiresAt={currentExpiresAt}
         memberCount={members.filter((m) => m.isOnline).length}
+        isCreator={currentUser.isCreator}
         typingUsers={typingUsers}
         onOpenInvite={() => setIsShareOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -586,7 +626,7 @@ export function ChatLayout({
         expiresAt={currentExpiresAt}
         onLeaveRoom={handleLeaveRoom}
         onCloseRoom={handleCloseRoom}
-        onExtendRoom={handleExtendRoom}
+        onExtendRoom={currentUser.isCreator ? handleExtendRoom : undefined}
       />
 
       {/* Leave Room Confirmation Alert Dialog (Mobile Top-Left Back Button) */}

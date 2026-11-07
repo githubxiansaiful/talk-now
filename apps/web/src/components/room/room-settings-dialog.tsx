@@ -133,8 +133,8 @@ export function RoomSettingsDialog({
             </p>
 
             <div className="space-y-3">
-              {/* Extend Room Duration Section */}
-              {onExtendRoom && (
+              {/* Extend Room Duration Section (Creator only) */}
+              {isCreator && onExtendRoom && (
                 <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-2 text-xs font-bold text-[var(--text)]">

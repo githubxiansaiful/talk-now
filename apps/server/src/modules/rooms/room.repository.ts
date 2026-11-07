@@ -229,13 +229,20 @@ export class RoomRepository {
   /**
    * Extends room expiry time by additional minutes.
    */
-  async extendRoom(code: string, minutes: number): Promise<Room> {
+  async extendRoom(code: string, minutes: number, creatorToken?: string): Promise<Room> {
     const room = await prisma.room.findUnique({
       where: { code },
     });
 
     if (!room) {
       throw new Error('Room not found');
+    }
+
+    if (creatorToken) {
+      const creatorTokenHash = hashToken(creatorToken);
+      if (room.creatorTokenHash !== creatorTokenHash) {
+        throw new Error('Unauthorized: Invalid creator token');
+      }
     }
 
     if (room.status !== 'ACTIVE') {

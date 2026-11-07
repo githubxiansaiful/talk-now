@@ -109,15 +109,31 @@ export const apiClient = {
   },
 
   /**
-   * Extends room expiry duration
+   * Extends room expiry duration (creator only)
    */
-  async extendRoom(code: string, minutes: number = 30): Promise<Room> {
+  async extendRoom(code: string, minutes: number = 30, creatorToken?: string): Promise<Room> {
+    let token = creatorToken;
+    if (!token && typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem(`talknow_session_${code}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          token = parsed?.creatorToken;
+        }
+      } catch {}
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['x-creator-token'] = token;
+    }
+
     const res = await fetch(`${API_BASE_URL}/api/rooms/${code}/extend`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ minutes }),
+      headers,
+      body: JSON.stringify({ minutes, creatorToken: token }),
     });
 
     const json = await res.json();

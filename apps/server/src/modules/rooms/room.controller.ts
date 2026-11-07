@@ -115,13 +115,19 @@ router.post('/:code/close', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/rooms/:code/extend - Extend room duration
+ * POST /api/rooms/:code/extend - Extend room duration (creator only)
  */
 router.post('/:code/extend', async (req: Request, res: Response) => {
   try {
     const { code } = req.params;
+    const creatorToken = (req.headers['x-creator-token'] as string) || req.body?.creatorToken;
+    if (!creatorToken) {
+      res.status(401).json({ success: false, error: 'Unauthorized: Creator token required' });
+      return;
+    }
+
     const minutes = Number(req.body?.minutes) || 30;
-    const result = await roomService.extendRoom(code, minutes);
+    const result = await roomService.extendRoom(code, minutes, creatorToken);
 
     // Broadcast room:time_extended event to all connected sockets
     broadcastRoomTimeExtended(code, result.expiresAt);
@@ -132,7 +138,8 @@ router.post('/:code/extend', async (req: Request, res: Response) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to extend room';
-    res.status(400).json({ success: false, error: message });
+    const status = message.includes('Unauthorized') ? 401 : message.includes('not found') ? 404 : 400;
+    res.status(status).json({ success: false, error: message });
   }
 });
 
