@@ -1,9 +1,10 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { SOCKET_EVENTS, Member } from '@talknow/shared';
+import { SOCKET_EVENTS, Member, Meeting, MeetingParticipant } from '@talknow/shared';
 import { ENV } from '../config/env';
 import { roomRepository } from '../modules/rooms/room.repository';
 import { messageService } from '../modules/messages/message.service';
+import { meetingRepository } from '../modules/meetings/meeting.repository';
 import { hashToken } from '../utils/room-code';
 import { prisma } from '../lib/prisma';
 import { checkSocketMessageRateLimit } from '../middleware/rate-limit';
@@ -25,18 +26,50 @@ export function getSocketIO(): SocketIOServer | null {
 export function broadcastRoomClosed(roomCode: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_CLOSED, { roomCode });
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode });
   }
 }
 
 export function broadcastRoomExpired(roomCode: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_EXPIRED, { roomCode });
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode });
   }
 }
 
 export function broadcastRoomTimeExtended(roomCode: string, expiresAt: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_TIME_EXTENDED, { roomCode, expiresAt });
+  }
+}
+
+export function broadcastMeetingStarted(roomCode: string, meeting: Meeting): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_STARTED, { roomCode, meeting });
+  }
+}
+
+export function broadcastMeetingEnded(roomCode: string, meetingId: string): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode, meetingId });
+  }
+}
+
+export function broadcastMeetingParticipantJoined(
+  roomCode: string,
+  payload: { meetingId: string; participant: MeetingParticipant; participantCount: number }
+): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_JOINED, payload);
+  }
+}
+
+export function broadcastMeetingParticipantLeft(
+  roomCode: string,
+  payload: { meetingId: string; memberId: string }
+): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, payload);
   }
 }
 
@@ -353,6 +386,76 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     );
 
     /**
+     * Meeting State Request Event
+     */
+    socket.on(
+      SOCKET_EVENTS.MEETING_STATE_REQUEST,
+      async (data: { roomCode: string }) => {
+        try {
+          const { roomCode } = data || {};
+          const session = socketSessions.get(socket.id);
+          if (!session || session.roomCode !== roomCode) return;
+
+          const activeMeeting = await meetingRepository.getActiveMeeting(session.roomId);
+          if (!activeMeeting) {
+            socket.emit(SOCKET_EVENTS.MEETING_STATE, { meeting: null, participants: [] });
+            return;
+          }
+
+          const participants = await meetingRepository.getActiveParticipants(activeMeeting.id);
+          socket.emit(SOCKET_EVENTS.MEETING_STATE, {
+            meeting: activeMeeting,
+            participants,
+          });
+        } catch (error) {
+          console.error('[Socket] Error fetching meeting state:', error);
+        }
+      }
+    );
+
+    /**
+     * Meeting Audio State Event (mute, speaking)
+     */
+    socket.on(
+      SOCKET_EVENTS.MEETING_AUDIO_STATE,
+      (data: { roomCode: string; meetingId: string; isMuted: boolean; isSpeaking: boolean }) => {
+        const { roomCode, meetingId, isMuted, isSpeaking } = data || {};
+        const session = socketSessions.get(socket.id);
+        if (!session || session.roomCode !== roomCode) return;
+
+        io.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_UPDATED, {
+          meetingId,
+          memberId: session.memberId,
+          displayName: session.displayName,
+          isMuted: Boolean(isMuted),
+          isSpeaking: Boolean(isSpeaking),
+        });
+      }
+    );
+
+    /**
+     * Meeting Leave Event
+     */
+    socket.on(
+      SOCKET_EVENTS.MEETING_LEAVE,
+      async (data: { roomCode: string; meetingId: string }) => {
+        try {
+          const { roomCode, meetingId } = data || {};
+          const session = socketSessions.get(socket.id);
+          if (!session || session.roomCode !== roomCode) return;
+
+          await meetingRepository.leaveMeeting(meetingId, session.memberId);
+          io.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, {
+            meetingId,
+            memberId: session.memberId,
+          });
+        } catch (error) {
+          console.error('[Socket] Error leaving meeting:', error);
+        }
+      }
+    );
+
+    /**
      * Disconnect Event
      */
     socket.on('disconnect', () => {
@@ -371,6 +474,20 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
             memberId,
             isOnline: false,
           });
+
+          // Clean up active meeting participant
+          meetingRepository
+            .getActiveMeeting(session.roomId)
+            .then((activeMeeting) => {
+              if (activeMeeting) {
+                meetingRepository.leaveMeeting(activeMeeting.id, memberId).catch(() => {});
+                socket.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, {
+                  meetingId: activeMeeting.id,
+                  memberId,
+                });
+              }
+            })
+            .catch(() => {});
         }
       }
     });

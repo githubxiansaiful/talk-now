@@ -13,6 +13,11 @@ enum RoomStatus {
   CLOSED
 }
 
+enum MeetingStatus {
+  ACTIVE
+  ENDED
+}
+
 enum MessageType {
   TEXT
   SYSTEM
@@ -31,6 +36,7 @@ model Room {
 
   members          Member[]
   messages         Message[]
+  meetings         Meeting[]
 
   @@index([code])
   @@index([expiresAt])
@@ -50,9 +56,42 @@ model Member {
   room             Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
   messages         Message[]
   reactions        Reaction[]
+  hostedMeetings   Meeting[]            @relation("MeetingHost")
+  meetingParticipations MeetingParticipant[]
 
   @@index([roomId])
   @@index([sessionTokenHash])
+}
+
+model Meeting {
+  id             String               @id @default(uuid())
+  roomId         String
+  status         MeetingStatus        @default(ACTIVE)
+  hostMemberId   String
+  startedAt      DateTime             @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  room           Room                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  hostMember     Member               @relation("MeetingHost", fields: [hostMemberId], references: [id], onDelete: Cascade)
+  participants   MeetingParticipant[]
+
+  @@index([roomId, status])
+}
+
+model MeetingParticipant {
+  id          String    @id @default(uuid())
+  meetingId   String
+  memberId    String
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+
+  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([memberId])
 }
 
 model Message {

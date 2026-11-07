@@ -3,8 +3,12 @@ import { roomService } from './room.service';
 import { ZodError } from 'zod';
 import { createIpRateLimiter } from '../../middleware/rate-limit';
 import { broadcastRoomClosed, broadcastRoomTimeExtended } from '../../socket';
+import { meetingRouter } from '../meetings/meeting.controller';
 
 const router = Router();
+
+// Mount nested meeting routes under /api/rooms/:code/meetings
+router.use('/:code/meetings', meetingRouter);
 
 // Rate limiters
 const createRoomLimiter = createIpRateLimiter({

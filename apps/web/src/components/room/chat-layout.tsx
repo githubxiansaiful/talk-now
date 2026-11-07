@@ -15,6 +15,10 @@ import { X, WifiOff, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSocket } from '@/hooks/use-socket';
 import { apiClient } from '@/lib/api-client';
+import { useMeeting } from '@/hooks/use-meeting';
+import { MeetingBanner } from '@/components/meeting/meeting-banner';
+import { MeetingPreJoin } from '@/components/meeting/meeting-pre-join';
+import { MeetingView } from '@/components/meeting/meeting-view';
 
 interface ChatLayoutProps {
   roomCode: string;
@@ -50,6 +54,41 @@ export function ChatLayout({
 
   // Room expiry state (synced with server)
   const [currentExpiresAt, setCurrentExpiresAt] = useState(expiresAt);
+
+  // Group Audio Meeting hook
+  const {
+    meeting: activeMeeting,
+    participants: meetingParticipants,
+    isPreJoinOpen,
+    isInMeeting,
+    isStarting: isStartingMeeting,
+    isJoining: isJoiningMeeting,
+    meetingDuration,
+    permissionState: micPermissionState,
+    isMuted,
+    audioLevel,
+    audioDevices,
+    audioOutputDevices,
+    selectedAudioInput,
+    selectedAudioOutput,
+    setSelectedAudioInput,
+    setSelectedAudioOutput,
+    openPreJoin,
+    closePreJoin,
+    startLocalAudioStream,
+    toggleMute,
+    startMeeting,
+    joinMeeting,
+    leaveMeeting,
+    endMeeting,
+  } = useMeeting({
+    roomCode,
+    sessionToken,
+    creatorToken,
+    currentUser,
+    socket,
+    isConnected,
+  });
 
   useEffect(() => {
     setCurrentExpiresAt(expiresAt);
@@ -493,6 +532,51 @@ export function ChatLayout({
     router.push('/expired');
   };
 
+  // If currently inside an active meeting, render full meeting view
+  if (isInMeeting && activeMeeting) {
+    return (
+      <MeetingView
+        meeting={activeMeeting}
+        participants={meetingParticipants}
+        roomName={roomName}
+        roomCode={roomCode}
+        currentUser={currentUser}
+        duration={meetingDuration}
+        isMuted={isMuted}
+        onToggleMute={toggleMute}
+        audioLevel={audioLevel}
+        audioDevices={audioDevices}
+        audioOutputDevices={audioOutputDevices}
+        selectedAudioInput={selectedAudioInput}
+        selectedAudioOutput={selectedAudioOutput}
+        onSelectAudioInput={setSelectedAudioInput}
+        onSelectAudioOutput={setSelectedAudioOutput}
+        onLeaveMeeting={leaveMeeting}
+        onEndMeeting={endMeeting}
+        chatDrawerNode={
+          <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)]">
+            <div className="flex-1 overflow-y-auto">
+              <MessageList
+                messages={messages}
+                currentMemberId={currentUser.id}
+                members={members}
+                onReact={handleReact}
+              />
+            </div>
+            <div className="p-3 border-t border-[var(--border)] bg-[var(--surface)]">
+              <MessageComposer
+                onSendMessage={handleSendMessage}
+                onTypingStart={handleTypingStart}
+                onTypingStop={handleTypingStop}
+                disabled={!isConnected}
+              />
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
       {/* Header */}
@@ -502,6 +586,8 @@ export function ChatLayout({
         expiresAt={currentExpiresAt}
         memberCount={members.filter((m) => m.isOnline).length}
         isCreator={currentUser.isCreator}
+        activeMeeting={activeMeeting}
+        onOpenMeeting={openPreJoin}
         typingUsers={typingUsers}
         onOpenInvite={() => setIsShareOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -509,6 +595,14 @@ export function ChatLayout({
         onBackClick={() => setIsLeaveAlertOpen(true)}
         onExpire={handleExpire}
       />
+
+      {/* Active Meeting Banner in Text Chat */}
+      {activeMeeting && !isInMeeting && (
+        <MeetingBanner
+          meeting={activeMeeting}
+          onJoinClick={openPreJoin}
+        />
+      )}
 
       {/* Reconnecting banner if socket disconnects */}
       {!isConnected && (
@@ -664,6 +758,31 @@ export function ChatLayout({
           </div>
         </div>
       )}
+
+      {/* Meeting Pre-Join Screen Modal */}
+      <MeetingPreJoin
+        isOpen={isPreJoinOpen}
+        onClose={closePreJoin}
+        meeting={activeMeeting}
+        roomName={roomName}
+        roomCode={roomCode}
+        displayName={currentUser.displayName}
+        isMuted={isMuted}
+        onToggleMute={toggleMute}
+        audioLevel={audioLevel}
+        permissionState={micPermissionState}
+        audioDevices={audioDevices}
+        audioOutputDevices={audioOutputDevices}
+        selectedAudioInput={selectedAudioInput}
+        selectedAudioOutput={selectedAudioOutput}
+        onSelectAudioInput={setSelectedAudioInput}
+        onSelectAudioOutput={setSelectedAudioOutput}
+        onRetryPermission={() => startLocalAudioStream(selectedAudioInput)}
+        onStartMeeting={startMeeting}
+        onJoinMeeting={joinMeeting}
+        isStarting={isStartingMeeting}
+        isJoining={isJoiningMeeting}
+      />
     </div>
   );
 }
