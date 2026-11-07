@@ -10,7 +10,7 @@ import { MessageComposer } from './message-composer';
 import { TypingIndicator } from './typing-indicator';
 import { RoomShareDialog } from './room-share-dialog';
 import { RoomSettingsDialog } from './room-settings-dialog';
-import { RoomToastContainer, ToastItem } from './room-toast';
+import { toast } from 'sonner';
 import { X, WifiOff, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSocket } from '@/hooks/use-socket';
@@ -55,33 +55,6 @@ export function ChatLayout({
     setCurrentExpiresAt(expiresAt);
   }, [expiresAt]);
 
-  // Toast notifications state
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const addToast = useCallback(
-    (toast: Omit<ToastItem, 'onDismiss'>, duration?: number) => {
-      setToasts((prev) => {
-        const filtered = prev.filter((t) => t.id !== toast.id);
-        const item: ToastItem = {
-          ...toast,
-          onDismiss: () => removeToast(toast.id),
-        };
-        return [...filtered, item];
-      });
-
-      if (duration && duration > 0) {
-        setTimeout(() => {
-          removeToast(toast.id);
-        }, duration);
-      }
-    },
-    [removeToast]
-  );
-
   // Extend room duration handler
   const handleExtendRoom = useCallback(
     async (minutes: number = 30) => {
@@ -125,31 +98,21 @@ export function ChatLayout({
         if (!hasWarned5mRef.current) {
           hasWarned5mRef.current = true;
           hasWarned15mRef.current = true;
-          removeToast('warning-15m');
+          toast.dismiss('warning-15m');
 
-          addToast({
+          toast.error('Only 5 minutes left!', {
             id: 'warning-5m',
-            type: 'warning-5m',
-            title: 'Only 5 minutes left!',
-            message:
+            description:
               'This room will expire in 5 minutes and delete all messages. Increase time to keep chatting.',
-            actions: [
-              {
-                label: '+15m',
-                variant: 'secondary',
-                onClick: () => handleExtendRoom(15),
-              },
-              {
-                label: '+30m',
-                variant: 'primary',
-                onClick: () => handleExtendRoom(30),
-              },
-              {
-                label: '+1h',
-                variant: 'secondary',
-                onClick: () => handleExtendRoom(60),
-              },
-            ],
+            duration: 30000,
+            action: {
+              label: 'Extend +30m',
+              onClick: () => handleExtendRoom(30),
+            },
+            cancel: {
+              label: '+15m',
+              onClick: () => handleExtendRoom(15),
+            },
           });
         }
       }
@@ -158,29 +121,19 @@ export function ChatLayout({
         if (!hasWarned15mRef.current) {
           hasWarned15mRef.current = true;
 
-          addToast({
+          toast.warning('15 minutes left', {
             id: 'warning-15m',
-            type: 'warning-15m',
-            title: '15 minutes left',
-            message:
+            description:
               'This room will expire soon. You can increase the time to keep chatting.',
-            actions: [
-              {
-                label: '+15m',
-                variant: 'secondary',
-                onClick: () => handleExtendRoom(15),
-              },
-              {
-                label: '+30m',
-                variant: 'primary',
-                onClick: () => handleExtendRoom(30),
-              },
-              {
-                label: '+1h',
-                variant: 'secondary',
-                onClick: () => handleExtendRoom(60),
-              },
-            ],
+            duration: 20000,
+            action: {
+              label: 'Extend +30m',
+              onClick: () => handleExtendRoom(30),
+            },
+            cancel: {
+              label: '+15m',
+              onClick: () => handleExtendRoom(15),
+            },
           });
         }
       }
@@ -189,7 +142,7 @@ export function ChatLayout({
     checkExpiryWarnings();
     const interval = setInterval(checkExpiryWarnings, 3000);
     return () => clearInterval(interval);
-  }, [currentExpiresAt, addToast, removeToast, handleExtendRoom, handleExpire]);
+  }, [currentExpiresAt, handleExtendRoom, handleExpire]);
 
   // Close dialogs/drawer on Escape
   useEffect(() => {
@@ -364,54 +317,41 @@ export function ChatLayout({
       if (remainingMs > 15 * 60 * 1000) {
         hasWarned15mRef.current = false;
         hasWarned5mRef.current = false;
-        removeToast('warning-15m');
-        removeToast('warning-5m');
+        toast.dismiss('warning-15m');
+        toast.dismiss('warning-5m');
       } else if (remainingMs > 5 * 60 * 1000) {
         hasWarned5mRef.current = false;
-        removeToast('warning-5m');
+        toast.dismiss('warning-5m');
       }
 
-      addToast(
-        {
-          id: 'extend-success-' + Date.now(),
-          type: 'success',
-          title: 'Room Extended!',
-          message: 'Duration was successfully increased.',
-        },
-        4000
-      );
+      toast.success('Room Extended!', {
+        description: 'Room duration was successfully increased.',
+        duration: 4000,
+      });
     };
 
     // Message rejected (e.g. rate limit)
     const handleMessageRejected = (data: { error: string }) => {
       setRejectionNotice(data.error);
+      toast.error('Message rejected', {
+        description: data.error,
+        duration: 4000,
+      });
       setTimeout(() => setRejectionNotice(null), 4000);
     };
 
-    socket.on(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
-    socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
-    socket.on(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
-    socket.on(SOCKET_EVENTS.ROOM_MEMBER_JOINED, handleMemberJoined);
-    socket.on(SOCKET_EVENTS.PRESENCE_UPDATE, handlePresenceUpdate);
-    socket.on(SOCKET_EVENTS.ROOM_MEMBER_LEFT, handleMemberLeft);
-    socket.on(SOCKET_EVENTS.TYPING_UPDATE, handleTypingUpdate);
-    socket.on(SOCKET_EVENTS.ROOM_EXPIRED, handleRoomExpired);
-    socket.on(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
-    socket.on(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
-
-    return () => {
-      socket.off(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
-      socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
-      socket.off(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
-      socket.off(SOCKET_EVENTS.ROOM_MEMBER_JOINED, handleMemberJoined);
-      socket.off(SOCKET_EVENTS.PRESENCE_UPDATE, handlePresenceUpdate);
-      socket.off(SOCKET_EVENTS.ROOM_MEMBER_LEFT, handleMemberLeft);
-      socket.off(SOCKET_EVENTS.TYPING_UPDATE, handleTypingUpdate);
-      socket.off(SOCKET_EVENTS.ROOM_EXPIRED, handleRoomExpired);
-      socket.off(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
-      socket.off(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
+    // Message reaction updated in real-time
+    const handleReactionUpdate = (data: {
+      messageId: string;
+      reactions: Message['reactions'];
+    }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === data.messageId ? { ...msg, reactions: data.reactions } : msg
+        )
+      );
     };
-  }, [socket, roomCode, sessionToken, currentUser.id, router, addToast, removeToast]);
+  }, [socket, roomCode, sessionToken, currentUser.id, router]);
 
   // Handle sending a message
   const handleSendMessage = (content: string) => {
@@ -428,6 +368,16 @@ export function ChatLayout({
 
     // Notify stop typing
     socket.emit(SOCKET_EVENTS.TYPING_STOP, { roomCode });
+  };
+
+  // Handle message reaction (like WhatsApp & Messenger)
+  const handleReact = (messageId: string, emoji: string) => {
+    if (!socket || !isConnected) return;
+    socket.emit(SOCKET_EVENTS.MESSAGE_REACT, {
+      roomCode,
+      messageId,
+      emoji,
+    });
   };
 
   // Typing triggers with user display name
@@ -471,9 +421,6 @@ export function ChatLayout({
 
   return (
     <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
-      {/* Expiry and Notification Toasts */}
-      <RoomToastContainer toasts={toasts} />
-
       {/* Header */}
       <ChatHeader
         roomName={roomName}
@@ -562,7 +509,11 @@ export function ChatLayout({
           />
 
           {/* Message List */}
-          <MessageList messages={messages} currentMemberId={currentUser.id} />
+          <MessageList
+            messages={messages}
+            currentMemberId={currentUser.id}
+            onReact={handleReact}
+          />
 
           {/* Rate limit / rejection banner */}
           {rejectionNotice && (

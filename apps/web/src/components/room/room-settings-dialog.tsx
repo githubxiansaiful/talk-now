@@ -218,16 +218,6 @@ export function RoomSettingsDialog({
                 </Button>
               </div>
             </div>
-
-            <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-              <span className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-[#16A36A]" />
-                Encrypted in transit
-              </span>
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
-                Cancel
-              </Button>
-            </div>
           </>
         )}
       </div>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Paperclip, Smile, Mic, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmojiPickerPopover } from './emoji-picker-popover';
 
 interface MessageComposerProps {
   onSendMessage: (content: string) => void;
@@ -19,6 +20,7 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [comingSoonFeature, setComingSoonFeature] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -39,6 +41,7 @@ export function MessageComposer({
 
     onSendMessage(trimmed);
     setContent('');
+    setIsEmojiOpen(false);
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       onTypingStop?.();
@@ -46,6 +49,35 @@ export function MessageComposer({
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+    }
+  };
+
+  const handleSelectEmoji = (emoji: string) => {
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart || content.length;
+      const end = textareaRef.current.selectionEnd || content.length;
+      const newContent = content.substring(0, start) + emoji + content.substring(end);
+      setContent(newContent);
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const nextPos = start + emoji.length;
+          textareaRef.current.setSelectionRange(nextPos, nextPos);
+          textareaRef.current.style.height = 'auto';
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+        }
+      }, 10);
+    } else {
+      setContent((prev) => prev + emoji);
+    }
+
+    if (onTypingStart) {
+      onTypingStart();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        onTypingStop?.();
+      }, 2500);
     }
   };
 
@@ -102,17 +134,30 @@ export function MessageComposer({
               <Paperclip className="w-5 h-5 -rotate-45" />
             </button>
 
-            {/* Left Button 2: Emoji / GIF */}
-            <button
-              type="button"
-              onClick={() => setComingSoonFeature('Emoji & GIF')}
-              disabled={disabled}
-              className="p-1.5 sm:p-2 text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors rounded-full shrink-0 cursor-pointer disabled:opacity-50"
-              aria-label="Emoji & GIFs"
-              title="Emoji & GIFs"
-            >
-              <Smile className="w-5 h-5" />
-            </button>
+            {/* Left Button 2: Emoji Picker */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEmojiOpen((prev) => !prev)}
+                disabled={disabled}
+                className={`p-1.5 sm:p-2 transition-colors rounded-full shrink-0 cursor-pointer disabled:opacity-50 ${
+                  isEmojiOpen
+                    ? 'text-[#7657E8] bg-[#7657E8]/10'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
+                }`}
+                aria-label="Insert emoji"
+                title="Insert emoji"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+
+              <EmojiPickerPopover
+                isOpen={isEmojiOpen}
+                onClose={() => setIsEmojiOpen(false)}
+                onSelectEmoji={handleSelectEmoji}
+                positionClassName="bottom-full mb-3 left-0"
+              />
+            </div>
 
             {/* Textarea Input */}
             <textarea

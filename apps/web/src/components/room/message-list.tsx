@@ -8,9 +8,10 @@ import { Lock } from 'lucide-react';
 interface MessageListProps {
   messages: Message[];
   currentMemberId?: string;
+  onReact?: (messageId: string, emoji: string) => void;
 }
 
-export function MessageList({ messages, currentMemberId }: MessageListProps) {
+export function MessageList({ messages, currentMemberId, onReact }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +56,8 @@ export function MessageList({ messages, currentMemberId }: MessageListProps) {
               message={message}
               isOwnMessage={isOwn}
               showSender={showSender}
+              currentMemberId={currentMemberId}
+              onReact={onReact}
             />
           );
         })}
