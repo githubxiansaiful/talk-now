@@ -1,22 +1,37 @@
 import { prisma } from '../lib/prisma';
+import { broadcastRoomExpired } from '../socket';
 
 export async function expireRoomsJob() {
   try {
     const now = new Date();
-    const result = await prisma.room.updateMany({
+
+    // Find rooms that should expire
+    const expiringRooms = await prisma.room.findMany({
       where: {
         status: 'ACTIVE',
         expiresAt: {
           lte: now,
         },
       },
-      data: {
-        status: 'EXPIRED',
-      },
+      select: { id: true, code: true },
     });
 
-    if (result.count > 0) {
-      console.log(`[Expiry Job] Marked ${result.count} room(s) as EXPIRED at ${now.toISOString()}`);
+    if (expiringRooms.length > 0) {
+      await prisma.room.updateMany({
+        where: {
+          id: { in: expiringRooms.map((r) => r.id) },
+        },
+        data: {
+          status: 'EXPIRED',
+        },
+      });
+
+      console.log(`[Expiry Job] Marked ${expiringRooms.length} room(s) as EXPIRED at ${now.toISOString()}`);
+
+      // Broadcast expiry to connected sockets in each room
+      for (const r of expiringRooms) {
+        broadcastRoomExpired(r.code);
+      }
     }
 
     // Retention cleanup: purge rooms closed or expired more than 24 hours ago
@@ -40,7 +55,6 @@ export async function expireRoomsJob() {
 
 export function startExpiryScheduler(intervalMs = 30000): NodeJS.Timeout {
   console.log(`[Scheduler] Room expiry scheduler started (interval: ${intervalMs / 1000}s)`);
-  // Run once immediately
   expireRoomsJob();
   return setInterval(expireRoomsJob, intervalMs);
 }

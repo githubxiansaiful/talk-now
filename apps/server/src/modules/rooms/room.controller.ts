@@ -1,13 +1,28 @@
 import { Router, Request, Response } from 'express';
 import { roomService } from './room.service';
 import { ZodError } from 'zod';
+import { createIpRateLimiter } from '../../middleware/rate-limit';
+import { broadcastRoomClosed } from '../../socket';
 
 const router = Router();
+
+// Rate limiters
+const createRoomLimiter = createIpRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  message: 'Too many rooms created from this IP. Please wait a few minutes.',
+});
+
+const joinRoomLimiter = createIpRateLimiter({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Too many join attempts. Please slow down.',
+});
 
 /**
  * POST /api/rooms - Create a new room
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', createRoomLimiter, async (req: Request, res: Response) => {
   try {
     const result = await roomService.createRoom(req.body);
     res.status(201).json({
@@ -49,7 +64,7 @@ router.get('/:code', async (req: Request, res: Response) => {
 /**
  * POST /api/rooms/:code/join - Join an existing active room
  */
-router.post('/:code/join', async (req: Request, res: Response) => {
+router.post('/:code/join', joinRoomLimiter, async (req: Request, res: Response) => {
   try {
     const { code } = req.params;
     const result = await roomService.joinRoom(code, req.body);
@@ -84,6 +99,10 @@ router.post('/:code/close', async (req: Request, res: Response) => {
     const { code } = req.params;
     const creatorToken = (req.headers['x-creator-token'] as string) || req.body?.creatorToken;
     const result = await roomService.closeRoom(code, creatorToken);
+
+    // Broadcast room:closed event to all connected sockets
+    broadcastRoomClosed(code);
+
     res.json({
       success: true,
       data: result,

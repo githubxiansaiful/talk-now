@@ -45,6 +45,16 @@ export function ChatLayout({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
 
+  // Close mobile drawer on Escape
+  useEffect(() => {
+    if (!isMobileMembersOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileMembersOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMembersOpen]);
+
   // Real-time state
   const [members, setMembers] = useState<Member[]>([
     {
@@ -59,6 +69,7 @@ export function ChatLayout({
   ]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [rejectionNotice, setRejectionNotice] = useState<string | null>(null);
 
   // Typing timer reference
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -144,8 +155,15 @@ export function ChatLayout({
       router.push('/expired');
     };
 
+    // Message rejected (e.g. rate limit)
+    const handleMessageRejected = (data: { error: string }) => {
+      setRejectionNotice(data.error);
+      setTimeout(() => setRejectionNotice(null), 4000);
+    };
+
     socket.on(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
     socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+    socket.on(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
     socket.on(SOCKET_EVENTS.ROOM_MEMBER_JOINED, handleMemberJoined);
     socket.on(SOCKET_EVENTS.PRESENCE_UPDATE, handlePresenceUpdate);
     socket.on(SOCKET_EVENTS.ROOM_MEMBER_LEFT, handleMemberLeft);
@@ -156,6 +174,7 @@ export function ChatLayout({
     return () => {
       socket.off(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
       socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+      socket.off(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
       socket.off(SOCKET_EVENTS.ROOM_MEMBER_JOINED, handleMemberJoined);
       socket.off(SOCKET_EVENTS.PRESENCE_UPDATE, handlePresenceUpdate);
       socket.off(SOCKET_EVENTS.ROOM_MEMBER_LEFT, handleMemberLeft);
@@ -299,6 +318,13 @@ export function ChatLayout({
 
           {/* Message List */}
           <MessageList messages={messages} currentMemberId={currentUser.id} />
+
+          {/* Rate limit / rejection banner */}
+          {rejectionNotice && (
+            <div className="mx-4 mb-2 p-2.5 rounded-xl bg-[var(--danger-light)] border border-[#DC4C4C]/20 text-[#DC4C4C] text-xs font-medium text-center animate-in fade-in duration-150">
+              {rejectionNotice}
+            </div>
+          )}
 
           {/* Typing indicator */}
           <TypingIndicator typingUsers={typingUsers} />

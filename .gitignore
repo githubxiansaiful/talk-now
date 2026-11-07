@@ -1,29 +1,32 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.js
 .yarn/install-state.gz
-node_modules
-# testing
-/coverage
 
-# next.js
-/.next/
-/out/
+# next.js build outputs
+.next/
+**/.next/
+out/
+**/out/
+
+# testing
+coverage/
 
 # turbo
-.turbo
+.turbo/
+**/.turbo/
 
 # build outputs
 dist/
+**/dist/
 build/
-
-# production
-/build
+**/build/
 
 # misc
 .DS_Store
 *.pem
+*.log
 
 # debug
 npm-debug.log*
@@ -31,10 +34,17 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# local env files
-.env*.local
+# local env files (all packages)
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# private product specs / instructions
+project-structure.md

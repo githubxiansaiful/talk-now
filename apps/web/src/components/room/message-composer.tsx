@@ -70,7 +70,7 @@ export function MessageComposer({
   }, []);
 
   return (
-    <div className="p-3 sm:p-4 bg-[var(--surface)] border-t border-[var(--border)] shrink-0">
+    <div className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[var(--surface)] border-t border-[var(--border)] shrink-0">
       <div className="flex items-end gap-2 max-w-4xl mx-auto">
         <div className="flex-1 relative bg-[var(--background)] border border-[var(--border)] focus-within:border-[#7657E8] focus-within:ring-2 focus-within:ring-[#7657E8]/20 rounded-2xl transition-all">
           <textarea

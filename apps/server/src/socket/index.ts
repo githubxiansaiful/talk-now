@@ -6,6 +6,7 @@ import { roomRepository } from '../modules/rooms/room.repository';
 import { messageService } from '../modules/messages/message.service';
 import { hashToken } from '../utils/room-code';
 import { prisma } from '../lib/prisma';
+import { checkSocketMessageRateLimit } from '../middleware/rate-limit';
 
 interface SocketSession {
   roomId: string;
@@ -13,6 +14,24 @@ interface SocketSession {
   memberId: string;
   displayName: string;
   isCreator: boolean;
+}
+
+let ioInstance: SocketIOServer | null = null;
+
+export function getSocketIO(): SocketIOServer | null {
+  return ioInstance;
+}
+
+export function broadcastRoomClosed(roomCode: string): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_CLOSED, { roomCode });
+  }
+}
+
+export function broadcastRoomExpired(roomCode: string): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_EXPIRED, { roomCode });
+  }
 }
 
 export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
@@ -26,10 +45,12 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     pingTimeout: 5000,
   });
 
+  ioInstance = io;
+
   // Map socket ID to session data
   const socketSessions = new Map<string, SocketSession>();
 
-  // Track online status per member ID (allows multi-tab)
+  // Track online status per member ID
   const memberSockets = new Map<string, Set<string>>();
 
   io.on('connection', (socket: Socket) => {
@@ -121,7 +142,7 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
 
           const recentMessages = await messageService.getRecentMessages(room.id, 100);
 
-          // Acknowledge join to the connecting socket
+          // Acknowledge join to connecting socket
           socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
             room,
             member: {
@@ -137,7 +158,7 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
             members: formattedMembers,
           });
 
-          // Broadcast to other room members that this member is online
+          // Broadcast to other room members
           socket.to(roomCode).emit(SOCKET_EVENTS.ROOM_MEMBER_JOINED, {
             member: {
               id: memberRecord.id,
@@ -162,13 +183,13 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     );
 
     /**
-     * Send Message Event
+     * Send Message Event (with rate limit & abuse protection)
      */
     socket.on(
       SOCKET_EVENTS.MESSAGE_SEND,
       async (data: { roomCode: string; content: string; sessionToken: string }) => {
         try {
-          const { roomCode, content, sessionToken } = data || {};
+          const { roomCode, content } = data || {};
           const session = socketSessions.get(socket.id);
 
           if (!session || session.roomCode !== roomCode) {
@@ -177,6 +198,15 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
           }
 
           if (!content || !content.trim()) return;
+
+          // Rate limit: max 5 messages per 3s
+          const rateCheck = checkSocketMessageRateLimit(session.memberId);
+          if (!rateCheck.allowed) {
+            socket.emit(SOCKET_EVENTS.MESSAGE_REJECTED, {
+              error: `Slow down! Please wait ${Math.ceil(rateCheck.retryAfterMs / 1000)}s before sending another message.`,
+            });
+            return;
+          }
 
           // Check if room is still active
           const room = await roomRepository.findByCode(roomCode);
@@ -256,7 +286,6 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
         sockets.delete(socket.id);
         if (sockets.size === 0) {
           memberSockets.delete(memberId);
-          // Member is completely offline across all tabs
           socket.to(roomCode).emit(SOCKET_EVENTS.PRESENCE_UPDATE, {
             memberId,
             isOnline: false,

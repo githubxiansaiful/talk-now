@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { X, LogOut, Trash2, Shield, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +19,15 @@ export function RoomSettingsDialog({
   onLeaveRoom,
   onCloseRoom,
 }: RoomSettingsDialogProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
