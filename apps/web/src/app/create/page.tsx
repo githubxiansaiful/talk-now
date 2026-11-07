@@ -97,7 +97,9 @@ export default function CreateRoomPage() {
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <AppLogo size="sm" />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/"
               className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors"
@@ -105,9 +107,7 @@ export default function CreateRoomPage() {
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <AppLogo size="sm" />
           </div>
-          <ThemeToggle />
         </div>
       </header>
 
