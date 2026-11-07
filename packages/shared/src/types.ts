@@ -36,6 +36,7 @@ export interface Message {
   roomId: string;
   memberId: string;
   senderName: string;
+  senderIsCreator?: boolean;
   content: string;
   messageType: MessageType;
   createdAt: string;

@@ -1,17 +1,18 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Message } from '@talknow/shared';
+import { Message, Member } from '@talknow/shared';
 import { MessageItem } from './message-item';
 import { Lock } from 'lucide-react';
 
 interface MessageListProps {
   messages: Message[];
   currentMemberId?: string;
+  members?: Member[];
   onReact?: (messageId: string, emoji: string) => void;
 }
 
-export function MessageList({ messages, currentMemberId, onReact }: MessageListProps) {
+export function MessageList({ messages, currentMemberId, members, onReact }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -43,19 +44,15 @@ export function MessageList({ messages, currentMemberId, onReact }: MessageListP
         {/* Message Items */}
         {messages.map((message, index) => {
           const isOwn = message.isOwnMessage || message.memberId === currentMemberId;
-          const prevMessage = index > 0 ? messages[index - 1] : null;
-
-          const showSender =
-            !prevMessage ||
-            prevMessage.memberId !== message.memberId ||
-            new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime() > 180000;
+          const senderMember = members?.find((m) => m.id === message.memberId);
+          const isCreator = Boolean(message.senderIsCreator ?? senderMember?.isCreator);
 
           return (
             <MessageItem
               key={message.id || index}
               message={message}
               isOwnMessage={isOwn}
-              showSender={showSender}
+              isCreator={isCreator}
               currentMemberId={currentMemberId}
               onReact={onReact}
             />

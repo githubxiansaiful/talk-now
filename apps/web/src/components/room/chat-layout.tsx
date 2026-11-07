@@ -547,6 +547,7 @@ export function ChatLayout({
           <MessageList
             messages={messages}
             currentMemberId={currentUser.id}
+            members={members}
             onReact={handleReact}
           />
 

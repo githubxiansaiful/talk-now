@@ -30,7 +30,7 @@ export class MessageRepository {
       },
       include: {
         member: {
-          select: { displayName: true },
+          select: { displayName: true, isCreator: true },
         },
         reactions: {
           select: { emoji: true, memberId: true },
@@ -43,6 +43,7 @@ export class MessageRepository {
       roomId: message.roomId,
       memberId: message.memberId,
       senderName: message.member.displayName,
+      senderIsCreator: message.member.isCreator,
       content: message.content,
       messageType: 'TEXT',
       createdAt: message.createdAt.toISOString(),
@@ -64,7 +65,7 @@ export class MessageRepository {
       take: limit,
       include: {
         member: {
-          select: { displayName: true },
+          select: { displayName: true, isCreator: true },
         },
         reactions: {
           select: { emoji: true, memberId: true },
@@ -77,6 +78,7 @@ export class MessageRepository {
       roomId: m.roomId,
       memberId: m.memberId,
       senderName: m.member.displayName,
+      senderIsCreator: m.member.isCreator,
       content: m.content,
       messageType: m.messageType as 'TEXT' | 'SYSTEM',
       createdAt: m.createdAt.toISOString(),
