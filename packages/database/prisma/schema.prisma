@@ -1,0 +1,72 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoomStatus {
+  ACTIVE
+  EXPIRED
+  CLOSED
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+}
+
+model Room {
+  id               String      @id @default(uuid())
+  code             String      @unique
+  name             String?
+  creatorTokenHash String
+  status           RoomStatus  @default(ACTIVE)
+  maxMembers       Int?
+  createdAt        DateTime    @default(now())
+  expiresAt        DateTime
+  closedAt         DateTime?
+
+  members          Member[]
+  messages         Message[]
+
+  @@index([code])
+  @@index([expiresAt])
+  @@index([status])
+}
+
+model Member {
+  id               String    @id @default(uuid())
+  roomId           String
+  displayName      String
+  sessionTokenHash String
+  joinedAt         DateTime  @default(now())
+  lastSeenAt       DateTime  @default(now())
+  leftAt           DateTime?
+  isCreator        Boolean   @default(false)
+
+  room             Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  messages         Message[]
+
+  @@index([roomId])
+  @@index([sessionTokenHash])
+}
+
+model Message {
+  id          String      @id @default(uuid())
+  roomId      String
+  memberId    String
+  content     String
+  messageType MessageType @default(TEXT)
+  createdAt   DateTime    @default(now())
+  editedAt    DateTime?
+  deletedAt   DateTime?
+
+  room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  member      Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([memberId])
+}

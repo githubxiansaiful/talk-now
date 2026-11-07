@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #F8F8FC;
+    --surface: #FFFFFF;
+    --surface-secondary: #F2F1F8;
+    --primary: #7657E8;
+    --primary-hover: #6545D5;
+    --primary-light: #F0EDFD;
+    --primary-foreground: #FFFFFF;
+    --text: #171725;
+    --text-secondary: #747487;
+    --text-muted: #9E9EB2;
+    --border: #E9E8F0;
+    --border-light: #F0EFF6;
+    --success: #16A36A;
+    --success-light: #E7F6EE;
+    --danger: #DC4C4C;
+    --danger-light: #FDF1F1;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+  }
+
+  .dark {
+    --background: #12121A;
+    --surface: #1B1B26;
+    --surface-secondary: #242433;
+    --primary: #8A6EF0;
+    --primary-hover: #7859E5;
+    --primary-light: #2A2544;
+    --primary-foreground: #FFFFFF;
+    --text: #F3F3FA;
+    --text-secondary: #A2A2B8;
+    --text-muted: #6E6E85;
+    --border: #2B2A3D;
+    --border-light: #232233;
+    --success: #20C283;
+    --success-light: #163629;
+    --danger: #F05C5C;
+    --danger-light: #3D1F1F;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(116, 116, 135, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(116, 116, 135, 0.4);
+}
+
+/* Pulse animation for typing dots */
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.animate-typing-1 {
+  animation: typing-bounce 1.4s infinite ease-in-out;
+}
+.animate-typing-2 {
+  animation: typing-bounce 1.4s infinite ease-in-out;
+  animation-delay: 0.2s;
+}
+.animate-typing-3 {
+  animation: typing-bounce 1.4s infinite ease-in-out;
+  animation-delay: 0.4s;
+}
