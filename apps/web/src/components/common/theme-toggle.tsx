@@ -9,12 +9,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     setMounted(true);
-    const savedTheme = localStorage.getItem('talknow-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    }
+    setIsDark(document.documentElement.classList.contains('dark'));
   }, []);
 
   const toggleTheme = () => {
@@ -29,20 +24,18 @@ export function ThemeToggle() {
     }
   };
 
-  if (!mounted) {
-    return (
-      <div className="w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)]" />
-    );
-  }
-
   return (
     <button
       onClick={toggleTheme}
       type="button"
       aria-label="Toggle dark mode"
-      className="flex items-center justify-center w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-secondary)]/30 transition-colors"
+      className="flex items-center justify-center w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-secondary)]/30 transition-colors cursor-pointer"
     >
-      {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+      {mounted && isDark ? (
+        <Sun className="w-4 h-4 text-amber-400" />
+      ) : (
+        <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+      )}
     </button>
   );
 }

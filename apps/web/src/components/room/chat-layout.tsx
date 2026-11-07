@@ -179,15 +179,18 @@ export function ChatLayout({
     // Typing updates
     const handleTypingUpdate = (data: {
       memberId: string;
-      displayName: string;
+      displayName?: string;
       isTyping: boolean;
     }) => {
       if (data.memberId === currentUser.id) return;
+      const member = members.find((m) => m.id === data.memberId);
+      const name = data.displayName || member?.displayName || 'Someone';
+
       setTypingUsers((prev) => {
         if (data.isTyping) {
-          return prev.includes(data.displayName) ? prev : [...prev, data.displayName];
+          return prev.includes(name) ? prev : [...prev, name];
         } else {
-          return prev.filter((name) => name !== data.displayName);
+          return prev.filter((n) => n !== name && n !== data.displayName);
         }
       });
     };
@@ -244,15 +247,23 @@ export function ChatLayout({
     socket.emit(SOCKET_EVENTS.TYPING_STOP, { roomCode });
   };
 
-  // Typing triggers
+  // Typing triggers with user display name
   const handleTypingStart = () => {
     if (!socket) return;
-    socket.emit(SOCKET_EVENTS.TYPING_START, { roomCode });
+    socket.emit(SOCKET_EVENTS.TYPING_START, {
+      roomCode,
+      memberId: currentUser.id,
+      displayName: currentUser.displayName,
+    });
   };
 
   const handleTypingStop = () => {
     if (!socket) return;
-    socket.emit(SOCKET_EVENTS.TYPING_STOP, { roomCode });
+    socket.emit(SOCKET_EVENTS.TYPING_STOP, {
+      roomCode,
+      memberId: currentUser.id,
+      displayName: currentUser.displayName,
+    });
   };
 
   const handleLeaveRoom = () => {
@@ -281,19 +292,21 @@ export function ChatLayout({
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
-      {/* Header */}
-      <ChatHeader
-        roomName={roomName}
-        roomCode={roomCode}
-        expiresAt={expiresAt}
-        memberCount={members.filter((m) => m.isOnline).length}
-        onOpenInvite={() => setIsShareOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onToggleMembers={() => setIsMobileMembersOpen(true)}
-        onBackClick={() => setIsLeaveAlertOpen(true)}
-        onExpire={handleExpire}
-      />
+    <div className="fixed inset-0 flex items-center justify-center bg-[var(--surface-secondary)] dark:bg-[#07070B] overflow-hidden">
+      <div className="w-full max-w-[850px] h-[100dvh] flex flex-col bg-[var(--background)] sm:border-x sm:border-[var(--border)] sm:shadow-2xl relative overflow-hidden">
+        {/* Header */}
+        <ChatHeader
+          roomName={roomName}
+          roomCode={roomCode}
+          expiresAt={expiresAt}
+          memberCount={members.filter((m) => m.isOnline).length}
+          typingUsers={typingUsers}
+          onOpenInvite={() => setIsShareOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onToggleMembers={() => setIsMobileMembersOpen(true)}
+          onBackClick={() => setIsLeaveAlertOpen(true)}
+          onExpire={handleExpire}
+        />
 
       {/* Reconnecting banner if socket disconnects */}
       {!isConnected && (
@@ -442,6 +455,7 @@ export function ChatLayout({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

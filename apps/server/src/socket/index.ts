@@ -236,27 +236,37 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     /**
      * Typing Indicators
      */
-    socket.on(SOCKET_EVENTS.TYPING_START, (data: { roomCode: string }) => {
-      const session = socketSessions.get(socket.id);
-      if (!session) return;
-      socket.to(data.roomCode).emit(SOCKET_EVENTS.TYPING_UPDATE, {
-        roomCode: data.roomCode,
-        memberId: session.memberId,
-        displayName: session.displayName,
-        isTyping: true,
-      });
-    });
+    socket.on(
+      SOCKET_EVENTS.TYPING_START,
+      (data: { roomCode: string; memberId?: string; displayName?: string }) => {
+        const session = socketSessions.get(socket.id);
+        const displayName = data?.displayName || session?.displayName || 'Someone';
+        const memberId = data?.memberId || session?.memberId || socket.id;
 
-    socket.on(SOCKET_EVENTS.TYPING_STOP, (data: { roomCode: string }) => {
-      const session = socketSessions.get(socket.id);
-      if (!session) return;
-      socket.to(data.roomCode).emit(SOCKET_EVENTS.TYPING_UPDATE, {
-        roomCode: data.roomCode,
-        memberId: session.memberId,
-        displayName: session.displayName,
-        isTyping: false,
-      });
-    });
+        socket.to(data.roomCode).emit(SOCKET_EVENTS.TYPING_UPDATE, {
+          roomCode: data.roomCode,
+          memberId,
+          displayName,
+          isTyping: true,
+        });
+      }
+    );
+
+    socket.on(
+      SOCKET_EVENTS.TYPING_STOP,
+      (data: { roomCode: string; memberId?: string; displayName?: string }) => {
+        const session = socketSessions.get(socket.id);
+        const displayName = data?.displayName || session?.displayName || 'Someone';
+        const memberId = data?.memberId || session?.memberId || socket.id;
+
+        socket.to(data.roomCode).emit(SOCKET_EVENTS.TYPING_UPDATE, {
+          roomCode: data.roomCode,
+          memberId,
+          displayName,
+          isTyping: false,
+        });
+      }
+    );
 
     /**
      * Leave Room Event

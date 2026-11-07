@@ -14,6 +14,7 @@ interface ChatHeaderProps {
   roomCode: string;
   expiresAt: string;
   memberCount: number;
+  typingUsers?: string[];
   onOpenInvite: () => void;
   onOpenSettings: () => void;
   onToggleMembers: () => void;
@@ -26,6 +27,7 @@ export function ChatHeader({
   roomCode,
   expiresAt,
   memberCount,
+  typingUsers,
   onOpenInvite,
   onOpenSettings,
   onToggleMembers,
@@ -89,16 +91,26 @@ export function ChatHeader({
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] mt-0.5 leading-none">
-              <span className="inline-flex items-center gap-1 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A]" />
-                {memberCount} online
-              </span>
-              <span className="sm:hidden text-[var(--text-muted)]">•</span>
-              <span className="sm:hidden text-[#7657E8] font-medium">
-                {remainingTime}
-              </span>
-            </div>
+            {typingUsers && typingUsers.length > 0 ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-[#16A36A] dark:text-[#20C283] font-medium mt-0.5 leading-none animate-pulse">
+                <span>
+                  {typingUsers.length === 1
+                    ? `${typingUsers[0]} is typing...`
+                    : `${typingUsers[0]} and ${typingUsers.length - 1} other${typingUsers.length > 2 ? 's' : ''} typing...`}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] mt-0.5 leading-none">
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A]" />
+                  {memberCount} online
+                </span>
+                <span className="sm:hidden text-[var(--text-muted)]">•</span>
+                <span className="sm:hidden text-[#7657E8] font-medium">
+                  {remainingTime}
+                </span>
+              </div>
+            )}
           </div>
         </button>
       </div>
