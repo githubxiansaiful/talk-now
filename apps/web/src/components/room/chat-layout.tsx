@@ -75,6 +75,40 @@ export function ChatLayout({
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [rejectionNotice, setRejectionNotice] = useState<string | null>(null);
 
+  // Audio references for send and receive tunes
+  const sendAudioRef = useRef<HTMLAudioElement | null>(null);
+  const receivedAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    sendAudioRef.current = new Audio('/send_message.mp3');
+    receivedAudioRef.current = new Audio('/received_message.mp3');
+
+    sendAudioRef.current.load();
+    receivedAudioRef.current.load();
+  }, []);
+
+  const playSendSound = () => {
+    try {
+      if (sendAudioRef.current) {
+        sendAudioRef.current.currentTime = 0;
+        sendAudioRef.current.play().catch(() => {});
+      }
+    } catch {
+      // Ignore audio error
+    }
+  };
+
+  const playReceivedSound = () => {
+    try {
+      if (receivedAudioRef.current) {
+        receivedAudioRef.current.currentTime = 0;
+        receivedAudioRef.current.play().catch(() => {});
+      }
+    } catch {
+      // Ignore audio error
+    }
+  };
+
   // Typing timer reference
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -110,6 +144,11 @@ export function ChatLayout({
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+
+      // Play received message tune if from other members
+      if (msg.memberId !== currentUser.id) {
+        playReceivedSound();
+      }
     };
 
     // Another member joined
@@ -191,6 +230,9 @@ export function ChatLayout({
   // Handle sending a message
   const handleSendMessage = (content: string) => {
     if (!socket || !content.trim()) return;
+
+    // Play WhatsApp-style message send tune
+    playSendSound();
 
     socket.emit(SOCKET_EVENTS.MESSAGE_SEND, {
       roomCode,
