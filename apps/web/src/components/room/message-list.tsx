@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Message, Member } from '@talknow/shared';
 import { MessageItem } from './message-item';
 import { Lock, Share2, Phone, ChevronDown, Sparkles } from 'lucide-react';
@@ -26,27 +26,101 @@ export function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const isNearBottomRef = useRef(true);
+  const isInitialScrollDoneRef = useRef(false);
+  const prevMessagesLengthRef = useRef(0);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
+  }, []);
 
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < 160;
     setShowScrollDown(distanceFromBottom > 180);
   };
 
-  const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleScrollToBottomClick = () => {
+    isNearBottomRef.current = true;
+    scrollToBottom(true);
+    setShowScrollDown(false);
   };
 
-  // Auto-scroll when new messages arrive if near the bottom or on initial load
+  // Keep anchored to bottom on resize (e.g. keyboard open on mobile, window resize, font/image load)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom < 260 || messages.length <= 2) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+    const observer = new ResizeObserver(() => {
+      if (isNearBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Reset initial scroll marker if messages reset to empty
+  useEffect(() => {
+    if (messages.length === 0) {
+      isInitialScrollDoneRef.current = false;
+      prevMessagesLengthRef.current = 0;
     }
   }, [messages.length]);
+
+  // Auto-scroll logic for initial load/refresh and incoming messages
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    const lastMessage = messages[messages.length - 1];
+    const isOwnLastMessage =
+      lastMessage && (lastMessage.isOwnMessage || lastMessage.memberId === currentMemberId);
+
+    // Initial load or page refresh with messages: snap immediately to the bottom
+    if (!isInitialScrollDoneRef.current) {
+      scrollToBottom(false);
+
+      const rAF = requestAnimationFrame(() => {
+        scrollToBottom(false);
+      });
+
+      const timer = setTimeout(() => {
+        scrollToBottom(false);
+        isInitialScrollDoneRef.current = true;
+      }, 50);
+
+      prevMessagesLengthRef.current = messages.length;
+      return () => {
+        cancelAnimationFrame(rAF);
+        clearTimeout(timer);
+      };
+    }
+
+    // Subsequent updates: If the user sent a message OR is already near bottom, scroll down
+    if (messages.length > prevMessagesLengthRef.current) {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const shouldScroll = isOwnLastMessage || isNearBottomRef.current || distanceFromBottom < 220;
+
+      if (shouldScroll) {
+        scrollToBottom(true);
+      }
+    }
+
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages, currentMemberId, scrollToBottom]);
 
   return (
     <div className="flex-1 relative overflow-hidden flex flex-col min-h-0">
@@ -55,7 +129,10 @@ export function MessageList({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 overscroll-contain select-text"
       >
-        <div className="min-h-full flex flex-col justify-end max-w-[850px] mx-auto w-full">
+        <div className="min-h-full flex flex-col max-w-[850px] mx-auto w-full">
+          {/* Spacer pushing messages towards bottom if few, but collapsing to 0 when overflowing */}
+          <div className="flex-1 min-h-0" />
+
           {/* Ephemeral privacy pill anchored above the conversation */}
           <div className="flex flex-col items-center my-3 select-none">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--surface)]/95 border border-[var(--border)] text-[11px] text-[var(--text-secondary)] max-w-md text-center shadow-2xs leading-snug">
@@ -149,7 +226,7 @@ export function MessageList({
       {showScrollDown && (
         <button
           type="button"
-          onClick={scrollToBottom}
+          onClick={handleScrollToBottomClick}
           className="absolute bottom-3 right-4 sm:right-6 z-20 h-9 px-3 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-lg text-xs font-semibold text-[var(--text)] hover:border-[#7657E8]/40 flex items-center gap-1.5 transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-150"
           title="Scroll to latest messages"
         >

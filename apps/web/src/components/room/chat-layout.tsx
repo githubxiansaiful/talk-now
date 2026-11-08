@@ -602,7 +602,7 @@ export function ChatLayout({
         chatDrawerNode={
           <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)] relative">
             <div className="absolute inset-0 chat-wallpaper" />
-            <div className="flex-1 overflow-y-auto relative z-10">
+            <div className="flex-1 flex flex-col min-h-0 relative z-10">
               <MessageList
                 messages={messages}
                 currentMemberId={currentUser.id}
