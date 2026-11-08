@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
+import type { Room as LiveKitRoom, RemoteTrack } from 'livekit-client';
 import { Meeting, MeetingParticipant, MeetingTokenResponse, SOCKET_EVENTS } from '@talknow/shared';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
@@ -27,13 +28,13 @@ export function useMeeting({
   creatorToken,
   currentUser,
   socket,
-  isConnected,
 }: UseMeetingOptions) {
   // Meeting states
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [participants, setParticipants] = useState<MeetingParticipant[]>([]);
   const [isPreJoinOpen, setIsPreJoinOpen] = useState(false);
   const [isInMeeting, setIsInMeeting] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [meetingDuration, setMeetingDuration] = useState(0);
@@ -47,16 +48,33 @@ export function useMeeting({
   const [selectedAudioInput, setSelectedAudioInput] = useState<string>('');
   const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('');
 
-  // Refs for audio pipeline & LiveKit
+  // Refs for audio pipeline & LiveKit (preventing stale closures in RAF loop)
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const livekitRoomRef = useRef<any>(null);
+  const livekitRoomRef = useRef<LiveKitRoom | null>(null);
+  const attachedAudioElementsRef = useRef<HTMLMediaElement[]>([]);
   const meetingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentTokenDataRef = useRef<MeetingTokenResponse | null>(null);
 
-  // Query devices
+  const isMutedRef = useRef(isMuted);
+  const meetingRef = useRef<Meeting | null>(meeting);
+  const socketRef = useRef<Socket | null>(socket);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
+    meetingRef.current = meeting;
+  }, [meeting]);
+
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
+
+  // Query available audio input & output devices
   const updateDeviceList = useCallback(async () => {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
       return;
@@ -68,18 +86,14 @@ export function useMeeting({
       setAudioDevices(inputs);
       setAudioOutputDevices(outputs);
 
-      if (inputs.length > 0 && !selectedAudioInput) {
-        setSelectedAudioInput(inputs[0].deviceId);
-      }
-      if (outputs.length > 0 && !selectedAudioOutput) {
-        setSelectedAudioOutput(outputs[0].deviceId);
-      }
+      setSelectedAudioInput((prev) => prev || (inputs[0]?.deviceId ?? ''));
+      setSelectedAudioOutput((prev) => prev || (outputs[0]?.deviceId ?? ''));
     } catch (err) {
       console.warn('[Meeting] Failed to enumerate audio devices:', err);
     }
-  }, [selectedAudioInput, selectedAudioOutput]);
+  }, []);
 
-  // Stop local mic stream
+  // Stop local mic stream & analyzer
   const stopLocalStream = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -118,19 +132,27 @@ export function useMeeting({
         };
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        // Respect current mute state on newly acquired tracks
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = !isMutedRef.current;
+        });
+
         localStreamRef.current = stream;
         setPermissionState('granted');
         await updateDeviceList();
 
         // Setup audio level analyzer for live speaking indication
         try {
-          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          const AudioCtx =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
           if (AudioCtx) {
             const ctx = new AudioCtx();
             audioContextRef.current = ctx;
             const source = ctx.createMediaStreamSource(stream);
             const analyser = ctx.createAnalyser();
             analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.6;
             source.connect(analyser);
             analyserRef.current = analyser;
 
@@ -146,18 +168,20 @@ export function useMeeting({
                 sum += buffer[i];
               }
               const average = sum / buffer.length;
-              // Scale to 0-100
-              const level = Math.min(100, Math.round((average / 128) * 100));
+              const currentMuted = isMutedRef.current;
+              const level = currentMuted ? 0 : Math.min(100, Math.round((average / 110) * 100));
               setAudioLevel(level);
 
-              const isSpeakingNow = level > 12 && !isMuted;
+              const isSpeakingNow = level > 12 && !currentMuted;
               if (isSpeakingNow !== lastSpeakingState) {
                 lastSpeakingState = isSpeakingNow;
-                if (socket && meeting) {
-                  socket.emit(SOCKET_EVENTS.MEETING_AUDIO_STATE, {
+                const activeSocket = socketRef.current;
+                const activeMeeting = meetingRef.current;
+                if (activeSocket && activeMeeting) {
+                  activeSocket.emit(SOCKET_EVENTS.MEETING_AUDIO_STATE, {
                     roomCode,
-                    meetingId: meeting.id,
-                    isMuted,
+                    meetingId: activeMeeting.id,
+                    isMuted: currentMuted,
                     isSpeaking: isSpeakingNow,
                   });
                 }
@@ -173,9 +197,10 @@ export function useMeeting({
         }
 
         return stream;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[Meeting] Mic access error:', err);
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        const errorName = err instanceof Error ? err.name : '';
+        if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
           setPermissionState('denied');
         } else {
           setPermissionState('unsupported');
@@ -183,13 +208,51 @@ export function useMeeting({
         return null;
       }
     },
-    [isMuted, meeting, roomCode, socket, stopLocalStream, updateDeviceList]
+    [roomCode, stopLocalStream, updateDeviceList]
   );
+
+  // Switch Microphone Input Device dynamically
+  const handleSelectAudioInput = useCallback(
+    async (deviceId: string) => {
+      setSelectedAudioInput(deviceId);
+      if (isPreJoinOpen || isInMeeting) {
+        await startLocalAudioStream(deviceId);
+      }
+      if (livekitRoomRef.current) {
+        try {
+          await livekitRoomRef.current.switchActiveDevice('audioinput', deviceId);
+        } catch (err) {
+          console.warn('[Meeting] Failed to switch LiveKit audioinput device:', err);
+        }
+      }
+    },
+    [isInMeeting, isPreJoinOpen, startLocalAudioStream]
+  );
+
+  // Switch Speaker Output Device dynamically
+  const handleSelectAudioOutput = useCallback(async (deviceId: string) => {
+    setSelectedAudioOutput(deviceId);
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.switchActiveDevice('audiooutput', deviceId);
+      } catch (err) {
+        console.warn('[Meeting] Failed to switch LiveKit audiooutput device:', err);
+      }
+    }
+    attachedAudioElementsRef.current.forEach((el) => {
+      const sinkEl = el as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
+      if (typeof sinkEl.setSinkId === 'function') {
+        sinkEl.setSinkId(deviceId).catch(() => {});
+      }
+    });
+  }, []);
 
   // Toggle Mute
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const nextMuted = !prev;
+      isMutedRef.current = nextMuted;
+
       if (localStreamRef.current) {
         localStreamRef.current.getAudioTracks().forEach((track) => {
           track.enabled = !nextMuted;
@@ -200,6 +263,10 @@ export function useMeeting({
         try {
           livekitRoomRef.current.localParticipant.setMicrophoneEnabled(!nextMuted);
         } catch {}
+      }
+
+      if (nextMuted) {
+        setAudioLevel(0);
       }
 
       if (socket && meeting) {
@@ -215,6 +282,25 @@ export function useMeeting({
     });
   }, [meeting, roomCode, socket]);
 
+  // Disconnect LiveKit & clean up attached DOM audio elements
+  const disconnectLiveKit = useCallback(() => {
+    attachedAudioElementsRef.current.forEach((el) => {
+      try {
+        el.pause();
+        el.srcObject = null;
+        el.remove();
+      } catch {}
+    });
+    attachedAudioElementsRef.current = [];
+
+    if (livekitRoomRef.current) {
+      try {
+        livekitRoomRef.current.disconnect();
+      } catch {}
+      livekitRoomRef.current = null;
+    }
+  }, []);
+
   // Connect to LiveKit if serverUrl is configured
   const connectLiveKit = useCallback(
     async (tokenData: MeetingTokenResponse) => {
@@ -223,11 +309,13 @@ export function useMeeting({
       }
 
       try {
+        disconnectLiveKit();
         const { Room, RoomEvent } = await import('livekit-client');
         const lkRoom = new Room({
           adaptiveStream: true,
           dynacast: true,
           audioCaptureDefaults: {
+            deviceId: selectedAudioInput || undefined,
             autoGainControl: true,
             echoCancellation: true,
             noiseSuppression: true,
@@ -237,15 +325,27 @@ export function useMeeting({
         livekitRoomRef.current = lkRoom;
 
         // Remote participant audio playback
-        lkRoom.on(RoomEvent.TrackSubscribed, (track: any) => {
+        lkRoom.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
           if (track.kind === 'audio') {
             const audioElement = track.attach();
+            audioElement.style.display = 'none';
             document.body.appendChild(audioElement);
+            attachedAudioElementsRef.current.push(audioElement);
+          }
+        });
+
+        lkRoom.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+          if (track.kind === 'audio') {
+            const detached = track.detach();
+            detached.forEach((el) => el.remove());
+            attachedAudioElementsRef.current = attachedAudioElementsRef.current.filter(
+              (el) => !detached.includes(el)
+            );
           }
         });
 
         // Remote active speakers
-        lkRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers: any[]) => {
+        lkRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
           const speakerIds = new Set(speakers.map((s) => s.identity));
           setParticipants((prev) =>
             prev.map((p) => ({
@@ -255,33 +355,24 @@ export function useMeeting({
           );
         });
 
-        // Connect
         await lkRoom.connect(tokenData.serverUrl, tokenData.token);
-
-        // Publish local mic track
-        await lkRoom.localParticipant.setMicrophoneEnabled(!isMuted);
+        await lkRoom.localParticipant.setMicrophoneEnabled(!isMutedRef.current);
       } catch (err) {
-        console.warn('[Meeting] LiveKit connection warning, operating in Web Audio mesh mode:', err);
+        console.warn('[Meeting] LiveKit connection warning, operating in Web Audio mode:', err);
       }
     },
-    [isMuted]
+    [disconnectLiveKit, selectedAudioInput]
   );
-
-  // Disconnect LiveKit
-  const disconnectLiveKit = useCallback(() => {
-    if (livekitRoomRef.current) {
-      try {
-        livekitRoomRef.current.disconnect();
-      } catch {}
-      livekitRoomRef.current = null;
-    }
-  }, []);
 
   // Open Pre-join Screen
   const openPreJoin = useCallback(async () => {
+    if (isInMeeting) {
+      setIsMinimized(false);
+      return;
+    }
     setIsPreJoinOpen(true);
     await startLocalAudioStream(selectedAudioInput);
-  }, [selectedAudioInput, startLocalAudioStream]);
+  }, [isInMeeting, selectedAudioInput, startLocalAudioStream]);
 
   // Close Pre-join Screen
   const closePreJoin = useCallback(() => {
@@ -298,27 +389,28 @@ export function useMeeting({
     try {
       const { meeting: newMeeting, tokenData } = await apiClient.startMeeting(roomCode, sessionToken);
       currentTokenDataRef.current = tokenData;
+      meetingRef.current = newMeeting;
       setMeeting(newMeeting);
       setIsInMeeting(true);
+      setIsMinimized(false);
       setIsPreJoinOpen(false);
 
-      // Start local stream if not running
-      await startLocalAudioStream(selectedAudioInput);
+      if (!localStreamRef.current) {
+        await startLocalAudioStream(selectedAudioInput);
+      }
 
-      // Connect media SFU if available
       await connectLiveKit(tokenData);
 
-      // Fetch participants
       const activeParticipants = await apiClient.getMeetingParticipants(roomCode, newMeeting.id);
       setParticipants(activeParticipants);
 
-      toast.success('Meeting Started', {
-        description: 'You are now the meeting host.',
+      toast.success('Voice Call Started', {
+        description: 'You are now hosting the room audio call.',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Meeting] Failed to start meeting:', err);
-      toast.error('Failed to start meeting', {
-        description: err.message || 'Please try again.',
+      toast.error('Failed to start call', {
+        description: err instanceof Error ? err.message : 'Please try again.',
       });
     } finally {
       setIsStarting(false);
@@ -336,25 +428,26 @@ export function useMeeting({
         sessionToken
       );
       currentTokenDataRef.current = tokenData;
+      meetingRef.current = updatedMeeting;
       setMeeting(updatedMeeting);
       setIsInMeeting(true);
+      setIsMinimized(false);
       setIsPreJoinOpen(false);
 
-      // Start local audio track
-      await startLocalAudioStream(selectedAudioInput);
+      if (!localStreamRef.current) {
+        await startLocalAudioStream(selectedAudioInput);
+      }
 
-      // Connect media SFU if available
       await connectLiveKit(tokenData);
 
-      // Fetch participants
       const activeParticipants = await apiClient.getMeetingParticipants(roomCode, meeting.id);
       setParticipants(activeParticipants);
 
-      toast.success('Joined Meeting');
-    } catch (err: any) {
+      toast.success('Joined Voice Call');
+    } catch (err: unknown) {
       console.error('[Meeting] Failed to join meeting:', err);
-      toast.error('Failed to join meeting', {
-        description: err.message || 'Please try again.',
+      toast.error('Failed to join call', {
+        description: err instanceof Error ? err.message : 'Please try again.',
       });
     } finally {
       setIsJoining(false);
@@ -380,9 +473,11 @@ export function useMeeting({
     disconnectLiveKit();
     stopLocalStream();
     setIsInMeeting(false);
+    setIsMinimized(false);
     setIsPreJoinOpen(false);
-    toast.info('Left the meeting', {
-      description: 'You remain connected to the room chat.',
+    setMeetingDuration(0);
+    toast.info('Left voice call', {
+      description: 'You are still connected to the text chat.',
     });
   }, [currentUser.id, disconnectLiveKit, meeting, roomCode, sessionToken, socket, stopLocalStream]);
 
@@ -395,21 +490,23 @@ export function useMeeting({
       stopLocalStream();
       setMeeting(null);
       setIsInMeeting(false);
+      setIsMinimized(false);
       setIsPreJoinOpen(false);
       setParticipants([]);
+      setMeetingDuration(0);
 
-      toast.success('Meeting Ended', {
-        description: 'Meeting was ended for all participants.',
+      toast.success('Voice Call Ended', {
+        description: 'The call was ended for all participants.',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Meeting] Failed to end meeting:', err);
-      toast.error('Failed to end meeting', {
-        description: err.message || 'Only host can end the meeting.',
+      toast.error('Failed to end call', {
+        description: err instanceof Error ? err.message : 'Only the host can end the call.',
       });
     }
   }, [creatorToken, disconnectLiveKit, meeting, roomCode, sessionToken, stopLocalStream]);
 
-  // Poll or check active meeting on mount
+  // Check active meeting on mount
   useEffect(() => {
     let isMounted = true;
     apiClient
@@ -435,23 +532,26 @@ export function useMeeting({
   useEffect(() => {
     if (!socket) return;
 
-    // Meeting started
     const handleMeetingStarted = (data: { roomCode: string; meeting: Meeting }) => {
       if (data.roomCode === roomCode) {
         setMeeting(data.meeting);
         apiClient.getMeetingParticipants(roomCode, data.meeting.id).then(setParticipants);
-        toast.info('Meeting Started', {
-          description: `${data.meeting.hostDisplayName || 'A member'} started a group call.`,
-          action: {
-            label: 'Join',
-            onClick: () => setIsPreJoinOpen(true),
-          },
-          duration: 6000,
-        });
+        if (data.meeting.hostMemberId !== currentUser.id) {
+          toast.info('Voice Call Started', {
+            description: `${data.meeting.hostDisplayName || 'A member'} started a group audio call.`,
+            action: {
+              label: 'Join Call',
+              onClick: () => {
+                setIsPreJoinOpen(true);
+                startLocalAudioStream(selectedAudioInput);
+              },
+            },
+            duration: 6000,
+          });
+        }
       }
     };
 
-    // Meeting state
     const handleMeetingState = (data: { meeting: Meeting | null; participants: MeetingParticipant[] }) => {
       setMeeting(data.meeting);
       if (data.participants) {
@@ -459,7 +559,6 @@ export function useMeeting({
       }
     };
 
-    // Participant joined
     const handleParticipantJoined = (data: {
       meetingId: string;
       participant: MeetingParticipant;
@@ -472,7 +571,6 @@ export function useMeeting({
       setMeeting((prev) => (prev ? { ...prev, participantCount: data.participantCount } : prev));
     };
 
-    // Participant left
     const handleParticipantLeft = (data: { meetingId: string; memberId: string }) => {
       setParticipants((prev) => prev.filter((p) => p.memberId !== data.memberId));
       setMeeting((prev) =>
@@ -485,7 +583,6 @@ export function useMeeting({
       );
     };
 
-    // Participant updated (mute, speaking)
     const handleParticipantUpdated = (data: {
       meetingId: string;
       memberId: string;
@@ -502,17 +599,18 @@ export function useMeeting({
       );
     };
 
-    // Meeting ended
     const handleMeetingEnded = (data: { roomCode: string }) => {
       if (data.roomCode === roomCode) {
         disconnectLiveKit();
         stopLocalStream();
         setMeeting(null);
         setIsInMeeting(false);
+        setIsMinimized(false);
         setIsPreJoinOpen(false);
         setParticipants([]);
-        toast.info('Meeting Ended', {
-          description: 'The meeting was ended by the host.',
+        setMeetingDuration(0);
+        toast.info('Voice Call Ended', {
+          description: 'The audio call has ended.',
         });
       }
     };
@@ -524,7 +622,6 @@ export function useMeeting({
     socket.on(SOCKET_EVENTS.MEETING_PARTICIPANT_UPDATED, handleParticipantUpdated);
     socket.on(SOCKET_EVENTS.MEETING_ENDED, handleMeetingEnded);
 
-    // Request meeting state on connect
     if (socket.connected) {
       socket.emit(SOCKET_EVENTS.MEETING_STATE_REQUEST, { roomCode });
     }
@@ -537,12 +634,19 @@ export function useMeeting({
       socket.off(SOCKET_EVENTS.MEETING_PARTICIPANT_UPDATED, handleParticipantUpdated);
       socket.off(SOCKET_EVENTS.MEETING_ENDED, handleMeetingEnded);
     };
-  }, [disconnectLiveKit, roomCode, socket, stopLocalStream]);
+  }, [
+    currentUser.id,
+    disconnectLiveKit,
+    roomCode,
+    selectedAudioInput,
+    socket,
+    startLocalAudioStream,
+    stopLocalStream,
+  ]);
 
-  // Duration timer
+  // Duration timer while in meeting
   useEffect(() => {
     if (!meeting?.startedAt || !isInMeeting) {
-      setMeetingDuration(0);
       if (meetingTimerRef.current) {
         clearInterval(meetingTimerRef.current);
         meetingTimerRef.current = null;
@@ -580,6 +684,8 @@ export function useMeeting({
     participants,
     isPreJoinOpen,
     isInMeeting,
+    isMinimized,
+    setIsMinimized,
     isStarting,
     isJoining,
     meetingDuration,
@@ -590,8 +696,8 @@ export function useMeeting({
     audioOutputDevices,
     selectedAudioInput,
     selectedAudioOutput,
-    setSelectedAudioInput,
-    setSelectedAudioOutput,
+    setSelectedAudioInput: handleSelectAudioInput,
+    setSelectedAudioOutput: handleSelectAudioOutput,
     openPreJoin,
     closePreJoin,
     startLocalAudioStream,

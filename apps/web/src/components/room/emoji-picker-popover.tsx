@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import type { EmojiClickData } from 'emoji-picker-react';
 import { Theme } from 'emoji-picker-react';
@@ -34,14 +34,10 @@ export function EmojiPickerPopover({
   title,
 }: EmojiPickerPopoverProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDark, setIsDark] = useState(false);
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   useEffect(() => {
     if (!isOpen) return;
-
-    // Detect dark mode
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    setIsDark(isDarkMode);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();

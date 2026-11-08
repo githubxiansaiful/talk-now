@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, LogOut, Trash2, Shield, AlertTriangle, Clock, Plus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, LogOut, Trash2, AlertTriangle, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatRemainingTime } from '@/lib/utils';
 
@@ -27,23 +27,26 @@ export function RoomSettingsDialog({
   const [confirmAction, setConfirmAction] = useState<'close' | 'leave' | null>(null);
   const [isExtending, setIsExtending] = useState<number | null>(null);
 
+  const handleClose = useCallback(() => {
+    setConfirmAction(null);
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
-    if (!isOpen) {
-      setConfirmAction(null);
-      return;
-    }
+    if (!isOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (confirmAction) {
           setConfirmAction(null);
         } else {
-          onClose();
+          handleClose();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, confirmAction, onClose]);
+  }, [isOpen, confirmAction, handleClose]);
 
   if (!isOpen) return null;
 

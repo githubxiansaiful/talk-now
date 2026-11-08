@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Clock,
   Users,
@@ -9,15 +9,16 @@ import {
   Volume2,
   Mic,
   MessageSquare,
-  Shield,
   Crown,
+  Minimize2,
+  Radio,
 } from 'lucide-react';
 import { AppLogo } from '@/components/common/app-logo';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { ParticipantTile } from './participant-tile';
 import { MeetingControls } from './meeting-controls';
-import { Meeting, MeetingParticipant, Member } from '@talknow/shared';
+import { Meeting, MeetingParticipant } from '@talknow/shared';
 
 interface MeetingViewProps {
   meeting: Meeting;
@@ -41,7 +42,9 @@ interface MeetingViewProps {
   onSelectAudioOutput: (deviceId: string) => void;
   onLeaveMeeting: () => void;
   onEndMeeting: () => void;
-  // Side chat integration
+  onMinimize?: () => void;
+  unreadChatCount?: number;
+  onClearUnreadChat?: () => void;
   chatDrawerNode?: React.ReactNode;
 }
 
@@ -63,11 +66,41 @@ export function MeetingView({
   onSelectAudioOutput,
   onLeaveMeeting,
   onEndMeeting,
+  onMinimize,
+  unreadChatCount = 0,
+  onClearUnreadChat,
   chatDrawerNode,
 }: MeetingViewProps) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Keyboard shortcuts: 'M' to toggle mute (when not typing), 'Escape' to close drawers/modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInputFocused =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.tagName === 'SELECT' ||
+        target?.isContentEditable;
+
+      if (e.key === 'Escape') {
+        if (isSettingsOpen) setIsSettingsOpen(false);
+        else if (isChatOpen) setIsChatOpen(false);
+        else if (isParticipantsOpen) setIsParticipantsOpen(false);
+        return;
+      }
+
+      if (!isInputFocused && (e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        onToggleMute();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, isChatOpen, isParticipantsOpen, onToggleMute]);
 
   // Format seconds to MM:SS or HH:MM:SS
   const formatDuration = (totalSeconds: number) => {
@@ -100,6 +133,11 @@ export function MeetingView({
 
   const isLocalHost = meeting.hostMemberId === currentUser.id;
 
+  // Determine active speaker for top bar indicator
+  const activeSpeaker = allParticipants.find((p) =>
+    p.memberId === currentUser.id ? audioLevel > 15 && !isMuted : p.isSpeaking && !p.isMuted
+  );
+
   // Responsive grid class based on participant count
   const getGridClasses = (count: number) => {
     if (count <= 1) return 'grid-cols-1 max-w-sm';
@@ -109,10 +147,31 @@ export function MeetingView({
     return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 max-w-5xl';
   };
 
+  const handleToggleChat = () => {
+    setIsChatOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsParticipantsOpen(false);
+        onClearUnreadChat?.();
+      }
+      return next;
+    });
+  };
+
+  const handleToggleParticipants = () => {
+    setIsParticipantsOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsChatOpen(false);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
       {/* Meeting Top Bar */}
-      <header className="h-14 sm:h-16 px-4 sm:px-6 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between shrink-0 z-30">
+      <header className="h-14 sm:h-16 px-4 sm:px-6 bg-[var(--surface)]/95 backdrop-blur-md border-b border-[var(--border)] flex items-center justify-between shrink-0 z-30">
         <div className="flex items-center gap-3 min-w-0">
           <div className="hidden sm:block">
             <AppLogo size="sm" />
@@ -122,6 +181,10 @@ export function MeetingView({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                <Radio className="w-2.5 h-2.5 animate-pulse" />
+                Live Audio
+              </span>
               <h1 className="text-sm sm:text-base font-bold text-[var(--text)] truncate">
                 {roomName || `Room ${roomCode}`}
               </h1>
@@ -137,23 +200,44 @@ export function MeetingView({
               <span>•</span>
               <span className="flex items-center gap-1 text-[var(--text-muted)]">
                 <Users className="w-3.5 h-3.5" />
-                {allParticipants.length} in call
+                {allParticipants.length} {allParticipants.length === 1 ? 'participant' : 'participants'}
               </span>
+              {activeSpeaker && (
+                <>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium truncate max-w-[180px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    {activeSpeaker.memberId === currentUser.id ? 'You are speaking' : `${activeSpeaker.displayName} speaking`}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {onMinimize && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onMinimize}
+              className="h-8 sm:h-9 px-3 rounded-xl text-xs font-semibold gap-1.5"
+              title="Minimize voice call and view full room"
+            >
+              <Minimize2 className="w-3.5 h-3.5 text-[#7657E8]" />
+              <span>Room View</span>
+            </Button>
+          )}
           <ThemeToggle />
         </div>
       </header>
 
-      {/* Main Body with Participant Area and Optional Chat Drawer */}
+      {/* Main Body with Participant Area and Optional Side Drawer */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Central Participant Tiles Grid */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col items-center justify-center">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col items-center justify-center relative">
           <div
-            className={`grid gap-3 sm:gap-4 w-full justify-items-center transition-all duration-300 ${getGridClasses(
+            className={`grid gap-3.5 sm:gap-5 w-full justify-items-center transition-all duration-300 ${getGridClasses(
               allParticipants.length
             )}`}
           >
@@ -163,7 +247,7 @@ export function MeetingView({
               const isCurrentMuted = isSelf ? isMuted : p.isMuted;
 
               return (
-                <div key={p.memberId} className="w-full aspect-4/3 sm:aspect-auto sm:h-52">
+                <div key={p.memberId} className="w-full aspect-4/3 sm:aspect-auto sm:h-54">
                   <ParticipantTile
                     participant={p}
                     isSelf={isSelf}
@@ -178,18 +262,19 @@ export function MeetingView({
 
         {/* Slide-out Participants Drawer */}
         {isParticipantsOpen && (
-          <aside className="w-80 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-30 animate-in slide-in-from-right duration-200">
+          <aside className="w-full sm:w-80 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-30 animate-in slide-in-from-right duration-200">
             <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#7657E8]" />
                 <h3 className="text-sm font-bold text-[var(--text)]">
-                  Participants ({allParticipants.length})
+                  In Call ({allParticipants.length})
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsParticipantsOpen(false)}
-                className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)]"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer"
+                aria-label="Close participants drawer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -207,7 +292,7 @@ export function MeetingView({
                     className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-950/60 text-[#7657E8] font-bold text-xs flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[#7657E8]/12 text-[#7657E8] font-bold text-xs flex items-center justify-center shrink-0 border border-[#7657E8]/20">
                         {p.displayName.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -229,13 +314,15 @@ export function MeetingView({
 
                     <div className="shrink-0 text-xs">
                       {isCurrentMuted ? (
-                        <span className="text-rose-500 text-[11px] font-medium">Muted</span>
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-semibold">
+                          Muted
+                        </span>
                       ) : isCurrentSpeaking ? (
-                        <span className="text-emerald-500 text-[11px] font-medium animate-pulse">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/12 text-emerald-500 text-[10px] font-semibold animate-pulse">
                           Speaking
                         </span>
                       ) : (
-                        <span className="text-[var(--text-muted)] text-[11px]">Active</span>
+                        <span className="text-[var(--text-muted)] text-[11px]">Listening</span>
                       )}
                     </div>
                   </div>
@@ -251,12 +338,13 @@ export function MeetingView({
             <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[#7657E8]" />
-                <h3 className="text-sm font-bold text-[var(--text)]">In-Meeting Room Chat</h3>
+                <h3 className="text-sm font-bold text-[var(--text)]">Room Chat</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)]"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer"
+                aria-label="Close room chat drawer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -278,20 +366,32 @@ export function MeetingView({
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-sm w-full p-6 shadow-2xl relative animate-in zoom-in-95 duration-150">
             <button
+              type="button"
               onClick={() => setIsSettingsOpen(false)}
               className="absolute top-4 right-4 p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+              aria-label="Close audio settings"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-2 mb-4">
-              <Settings2 className="w-5 h-5 text-[#7657E8]" />
-              <h3 className="text-base font-bold text-[var(--text)]">Audio Device Settings</h3>
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-[#7657E8]/10 text-[#7657E8] flex items-center justify-center">
+                <Settings2 className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text)] leading-tight">
+                  Audio Settings
+                </h3>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Switch microphone or speaker live
+                </p>
+              </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  <Mic className="w-3.5 h-3.5 text-[#7657E8]" />
                   Microphone Input
                 </label>
                 <select
@@ -313,7 +413,8 @@ export function MeetingView({
 
               {audioOutputDevices.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-[#7657E8]" />
                     Speaker Output
                   </label>
                   <select
@@ -333,7 +434,7 @@ export function MeetingView({
 
             <Button
               size="sm"
-              className="w-full mt-6 h-10 rounded-xl bg-[#7657E8] text-white font-semibold text-xs"
+              className="w-full mt-6 h-10 rounded-xl bg-[#7657E8] hover:bg-[#6545db] text-white font-semibold text-xs"
               onClick={() => setIsSettingsOpen(false)}
             >
               Done
@@ -347,13 +448,15 @@ export function MeetingView({
         isMuted={isMuted}
         onToggleMute={onToggleMute}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onToggleParticipants={() => setIsParticipantsOpen(!isParticipantsOpen)}
-        onToggleChat={() => setIsChatOpen(!isChatOpen)}
+        onToggleParticipants={handleToggleParticipants}
+        onToggleChat={handleToggleChat}
+        onMinimize={onMinimize}
         onLeaveMeeting={onLeaveMeeting}
         onEndMeeting={onEndMeeting}
         isHost={isLocalHost}
         isCreator={currentUser.isCreator}
         participantCount={allParticipants.length}
+        unreadChatCount={unreadChatCount}
         isChatOpen={isChatOpen}
         isParticipantsOpen={isParticipantsOpen}
       />

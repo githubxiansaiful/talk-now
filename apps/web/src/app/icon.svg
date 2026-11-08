@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="talknow-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7657E8" />
+      <stop offset="100%" stop-color="#9B82F3" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#talknow-grad)" />
+  <!-- Chat bubble -->
+  <path
+    d="M21 16v3a2 2 0 0 1-2 2H9l-4 4V9a2 2 0 0 1 2-2h8"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Share arrow -->
+  <path
+    d="m16 8 5-5m0 0h-4m4 0v4"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

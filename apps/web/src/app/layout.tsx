@@ -44,7 +44,11 @@ export const metadata: Metadata = {
       'Create a private, self-destructing group room, share one link, and talk in real time. No accounts, no apps, no permanent logs.',
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/favicon.svg',
   },
 };
 

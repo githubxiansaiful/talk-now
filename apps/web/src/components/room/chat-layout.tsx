@@ -51,9 +51,16 @@ export function ChatLayout({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
   const [isLeaveAlertOpen, setIsLeaveAlertOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   // Room expiry state (synced with server)
   const [currentExpiresAt, setCurrentExpiresAt] = useState(expiresAt);
+  const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt);
+
+  if (expiresAt !== prevExpiresAt) {
+    setPrevExpiresAt(expiresAt);
+    setCurrentExpiresAt(expiresAt);
+  }
 
   // Group Audio Meeting hook
   const {
@@ -61,6 +68,8 @@ export function ChatLayout({
     participants: meetingParticipants,
     isPreJoinOpen,
     isInMeeting,
+    isMinimized,
+    setIsMinimized,
     isStarting: isStartingMeeting,
     isJoining: isJoiningMeeting,
     meetingDuration,
@@ -89,10 +98,6 @@ export function ChatLayout({
     socket,
     isConnected,
   });
-
-  useEffect(() => {
-    setCurrentExpiresAt(expiresAt);
-  }, [expiresAt]);
 
   // Extend room duration handler (Creator only)
   const handleExtendRoom = useCallback(
@@ -217,7 +222,7 @@ export function ChatLayout({
     checkExpiryWarnings();
     const interval = setInterval(checkExpiryWarnings, 3000);
     return () => clearInterval(interval);
-  }, [currentExpiresAt, handleExtendRoom, handleExpire]);
+  }, [currentExpiresAt, handleExtendRoom, handleExpire, currentUser.isCreator]);
 
   // Close dialogs/drawer on Escape
   useEffect(() => {
@@ -281,9 +286,6 @@ export function ChatLayout({
     }
   };
 
-  // Typing timer reference
-  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   // Wire up socket events
   useEffect(() => {
     if (!socket) return;
@@ -306,7 +308,6 @@ export function ChatLayout({
     // Incoming real-time message
     const handleNewMessage = (msg: Message) => {
       setMessages((prev) => {
-        // Prevent duplicates
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
@@ -314,6 +315,9 @@ export function ChatLayout({
       // Play received message tune if from other members
       if (msg.memberId !== currentUser.id) {
         playReceivedSound();
+        if (isInMeeting && !isMinimized) {
+          setUnreadChatCount((count) => count + 1);
+        }
       }
     };
 
@@ -371,7 +375,6 @@ export function ChatLayout({
     const handleRoomTimeExtended = (data: { roomCode: string; expiresAt: string }) => {
       setCurrentExpiresAt(data.expiresAt);
 
-      // Update sessionStorage
       try {
         const stored = sessionStorage.getItem(`talknow_session_${roomCode}`);
         if (stored) {
@@ -381,7 +384,6 @@ export function ChatLayout({
         }
       } catch {}
 
-      // Reset warnings if new time is beyond thresholds
       const remainingMs = new Date(data.expiresAt).getTime() - Date.now();
       if (remainingMs > 15 * 60 * 1000) {
         hasWarned15mRef.current = false;
@@ -393,7 +395,6 @@ export function ChatLayout({
         toast.dismiss('warning-5m');
       }
 
-      // If not creator, show info toast that creator extended the conversation
       if (!currentUser.isCreator) {
         toast.info('Room Extended', {
           description: 'The room creator extended the conversation time.',
@@ -424,7 +425,6 @@ export function ChatLayout({
       );
     };
 
-    // Attach all socket listeners BEFORE emitting room join
     socket.on(SOCKET_EVENTS.ROOM_JOINED, handleRoomJoined);
     socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
     socket.on(SOCKET_EVENTS.MESSAGE_REJECTED, handleMessageRejected);
@@ -437,7 +437,6 @@ export function ChatLayout({
     socket.on(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
     socket.on(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
 
-    // Join room when socket connects or on mount
     const emitJoin = () => {
       socket.emit(SOCKET_EVENTS.ROOM_JOIN, {
         roomCode,
@@ -464,13 +463,12 @@ export function ChatLayout({
       socket.off(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
       socket.off(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
     };
-  }, [socket, roomCode, sessionToken, currentUser.id, router]);
+  }, [socket, roomCode, sessionToken, currentUser.id, currentUser.isCreator, router, isInMeeting, isMinimized, members]);
 
   // Handle sending a message
   const handleSendMessage = (content: string) => {
     if (!socket || !content.trim()) return;
 
-    // Play WhatsApp-style message send tune
     playSendSound();
 
     socket.emit(SOCKET_EVENTS.MESSAGE_SEND, {
@@ -479,11 +477,10 @@ export function ChatLayout({
       sessionToken,
     });
 
-    // Notify stop typing
     socket.emit(SOCKET_EVENTS.TYPING_STOP, { roomCode });
   };
 
-  // Handle message reaction (like WhatsApp & Messenger)
+  // Handle message reaction
   const handleReact = (messageId: string, emoji: string) => {
     if (!socket || !isConnected) return;
     socket.emit(SOCKET_EVENTS.MESSAGE_REACT, {
@@ -493,7 +490,7 @@ export function ChatLayout({
     });
   };
 
-  // Typing triggers with user display name
+  // Typing triggers
   const handleTypingStart = () => {
     if (!socket) return;
     socket.emit(SOCKET_EVENTS.TYPING_START, {
@@ -532,8 +529,8 @@ export function ChatLayout({
     router.push('/expired');
   };
 
-  // If currently inside an active meeting, render full meeting view
-  if (isInMeeting && activeMeeting) {
+  // If in meeting and NOT minimized, render full meeting view
+  if (isInMeeting && activeMeeting && !isMinimized) {
     return (
       <MeetingView
         meeting={activeMeeting}
@@ -553,6 +550,9 @@ export function ChatLayout({
         onSelectAudioOutput={setSelectedAudioOutput}
         onLeaveMeeting={leaveMeeting}
         onEndMeeting={endMeeting}
+        onMinimize={() => setIsMinimized(true)}
+        unreadChatCount={unreadChatCount}
+        onClearUnreadChat={() => setUnreadChatCount(0)}
         chatDrawerNode={
           <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)]">
             <div className="flex-1 overflow-y-auto">
@@ -561,6 +561,7 @@ export function ChatLayout({
                 currentMemberId={currentUser.id}
                 members={members}
                 onReact={handleReact}
+                onOpenInvite={() => setIsShareOpen(true)}
               />
             </div>
             <div className="p-3 border-t border-[var(--border)] bg-[var(--surface)]">
@@ -587,7 +588,9 @@ export function ChatLayout({
         memberCount={members.filter((m) => m.isOnline).length}
         isCreator={currentUser.isCreator}
         activeMeeting={activeMeeting}
+        isInMeeting={isInMeeting}
         onOpenMeeting={openPreJoin}
+        onMaximizeMeeting={() => setIsMinimized(false)}
         typingUsers={typingUsers}
         onOpenInvite={() => setIsShareOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -596,11 +599,17 @@ export function ChatLayout({
         onExpire={handleExpire}
       />
 
-      {/* Active Meeting Banner in Text Chat */}
-      {activeMeeting && !isInMeeting && (
+      {/* Active Meeting Banner: Shows either Join Call banner or Minimized In-Call bar */}
+      {activeMeeting && (
         <MeetingBanner
           meeting={activeMeeting}
+          isConnectedInCall={isInMeeting}
+          isMuted={isMuted}
+          duration={meetingDuration}
           onJoinClick={openPreJoin}
+          onExpandCall={() => setIsMinimized(false)}
+          onToggleMute={toggleMute}
+          onLeaveCall={leaveMeeting}
         />
       )}
 
@@ -620,16 +629,17 @@ export function ChatLayout({
             members={members}
             currentMemberId={currentUser.id}
             maxMembers={maxMembers}
+            meetingParticipants={meetingParticipants}
+            onOpenInvite={() => setIsShareOpen(true)}
           />
         </aside>
 
-        {/* Mobile slide-out members drawer with smooth right-to-left enter & left-to-right exit transition */}
+        {/* Mobile slide-out members drawer */}
         <div
           className={`fixed inset-0 z-50 lg:hidden flex transition-all duration-300 ${
             isMobileMembersOpen ? 'pointer-events-auto visible' : 'pointer-events-none invisible'
           }`}
         >
-          {/* Backdrop with fade in/out */}
           <div
             className={`fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
               isMobileMembersOpen ? 'opacity-100' : 'opacity-0'
@@ -637,7 +647,6 @@ export function ChatLayout({
             onClick={() => setIsMobileMembersOpen(false)}
           />
 
-          {/* Drawer panel with slide from right to left on enter, and slide back to right on exit */}
           <div
             className={`relative ml-auto w-72 max-w-[80vw] h-full bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col z-10 transform transition-transform duration-300 ease-in-out ${
               isMobileMembersOpen ? 'translate-x-0' : 'translate-x-full'
@@ -661,6 +670,11 @@ export function ChatLayout({
                 members={members}
                 currentMemberId={currentUser.id}
                 maxMembers={maxMembers}
+                meetingParticipants={meetingParticipants}
+                onOpenInvite={() => {
+                  setIsMobileMembersOpen(false);
+                  setIsShareOpen(true);
+                }}
               />
             </div>
           </div>
@@ -668,7 +682,6 @@ export function ChatLayout({
 
         {/* Main Conversation Column */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)] relative">
-          {/* Chat background wallpaper (black-chat-bg.png for dark mode, white-chat-bg.png for light mode) */}
           <div
             className="absolute inset-0 pointer-events-none bg-repeat transition-all duration-200"
             style={{
@@ -683,6 +696,8 @@ export function ChatLayout({
             currentMemberId={currentUser.id}
             members={members}
             onReact={handleReact}
+            onOpenInvite={() => setIsShareOpen(true)}
+            onOpenMeeting={openPreJoin}
           />
 
           {/* Rate limit / rejection banner */}
@@ -723,7 +738,7 @@ export function ChatLayout({
         onExtendRoom={currentUser.isCreator ? handleExtendRoom : undefined}
       />
 
-      {/* Leave Room Confirmation Alert Dialog (Mobile Top-Left Back Button) */}
+      {/* Leave Room Confirmation Alert Dialog */}
       {isLeaveAlertOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95 duration-150 relative">
