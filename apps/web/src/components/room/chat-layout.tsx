@@ -312,8 +312,8 @@ export function ChatLayout({
         return [...prev, msg];
       });
 
-      // Play received message tune if from other members
-      if (msg.memberId !== currentUser.id) {
+      // Play received message tune if from other members and not a system notice
+      if (msg.memberId !== currentUser.id && msg.messageType !== 'SYSTEM') {
         playReceivedSound();
         if (isInMeeting && !isMinimized) {
           setUnreadChatCount((count) => count + 1);

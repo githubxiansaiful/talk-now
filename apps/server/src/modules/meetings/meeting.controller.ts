@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { meetingService } from './meeting.service';
+import { roomRepository } from '../rooms/room.repository';
 import {
   broadcastMeetingStarted,
   broadcastMeetingEnded,
@@ -24,7 +25,7 @@ router.post('/', async (req: Request, res: Response) => {
     const { meeting, tokenData } = await meetingService.startMeeting(code, sessionToken);
 
     // Broadcast meeting:started to all members in the room channel
-    broadcastMeetingStarted(code, meeting);
+    broadcastMeetingStarted(code, meeting, tokenData.displayName);
 
     res.status(201).json({
       success: true,
@@ -157,8 +158,19 @@ router.post('/:meetingId/end', async (req: Request, res: Response) => {
       creatorToken
     );
 
+    let endedByName: string | undefined;
+    if (sessionToken) {
+      try {
+        const room = await roomRepository.findByCode(code);
+        if (room) {
+          const member = await roomRepository.verifySession(room.id, sessionToken);
+          if (member) endedByName = member.displayName;
+        }
+      } catch {}
+    }
+
     // Broadcast meeting:ended to room channel
-    broadcastMeetingEnded(code, meetingId);
+    broadcastMeetingEnded(code, meetingId, endedByName);
 
     res.json({
       success: true,

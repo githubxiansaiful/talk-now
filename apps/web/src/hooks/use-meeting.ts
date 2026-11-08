@@ -403,10 +403,6 @@ export function useMeeting({
 
       const activeParticipants = await apiClient.getMeetingParticipants(roomCode, newMeeting.id);
       setParticipants(activeParticipants);
-
-      toast.success('Voice Call Started', {
-        description: 'You are now hosting the room audio call.',
-      });
     } catch (err: unknown) {
       console.error('[Meeting] Failed to start meeting:', err);
       toast.error('Failed to start call', {
@@ -442,8 +438,6 @@ export function useMeeting({
 
       const activeParticipants = await apiClient.getMeetingParticipants(roomCode, meeting.id);
       setParticipants(activeParticipants);
-
-      toast.success('Joined Voice Call');
     } catch (err: unknown) {
       console.error('[Meeting] Failed to join meeting:', err);
       toast.error('Failed to join call', {
@@ -476,9 +470,6 @@ export function useMeeting({
     setIsMinimized(false);
     setIsPreJoinOpen(false);
     setMeetingDuration(0);
-    toast.info('Left voice call', {
-      description: 'You are still connected to the text chat.',
-    });
   }, [currentUser.id, disconnectLiveKit, meeting, roomCode, sessionToken, socket, stopLocalStream]);
 
   // End Meeting for Everyone (Host or room creator)
@@ -494,10 +485,6 @@ export function useMeeting({
       setIsPreJoinOpen(false);
       setParticipants([]);
       setMeetingDuration(0);
-
-      toast.success('Voice Call Ended', {
-        description: 'The call was ended for all participants.',
-      });
     } catch (err: unknown) {
       console.error('[Meeting] Failed to end meeting:', err);
       toast.error('Failed to end call', {
@@ -536,19 +523,6 @@ export function useMeeting({
       if (data.roomCode === roomCode) {
         setMeeting(data.meeting);
         apiClient.getMeetingParticipants(roomCode, data.meeting.id).then(setParticipants);
-        if (data.meeting.hostMemberId !== currentUser.id) {
-          toast.info('Voice Call Started', {
-            description: `${data.meeting.hostDisplayName || 'A member'} started a group audio call.`,
-            action: {
-              label: 'Join Call',
-              onClick: () => {
-                setIsPreJoinOpen(true);
-                startLocalAudioStream(selectedAudioInput);
-              },
-            },
-            duration: 6000,
-          });
-        }
       }
     };
 
@@ -609,9 +583,6 @@ export function useMeeting({
         setIsPreJoinOpen(false);
         setParticipants([]);
         setMeetingDuration(0);
-        toast.info('Voice Call Ended', {
-          description: 'The audio call has ended.',
-        });
       }
     };
 

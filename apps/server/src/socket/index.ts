@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { SOCKET_EVENTS, Member, Meeting, MeetingParticipant } from '@talknow/shared';
+import { SOCKET_EVENTS, Member, Meeting, MeetingParticipant, Message } from '@talknow/shared';
 import { ENV } from '../config/env';
 import { roomRepository } from '../modules/rooms/room.repository';
 import { messageService } from '../modules/messages/message.service';
@@ -23,6 +23,12 @@ export function getSocketIO(): SocketIOServer | null {
   return ioInstance;
 }
 
+export function broadcastNewMessage(roomCode: string, message: Message): void {
+  if (ioInstance) {
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MESSAGE_NEW, message);
+  }
+}
+
 export function broadcastRoomClosed(roomCode: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_CLOSED, { roomCode });
@@ -43,16 +49,53 @@ export function broadcastRoomTimeExtended(roomCode: string, expiresAt: string): 
   }
 }
 
-export function broadcastMeetingStarted(roomCode: string, meeting: Meeting): void {
+export function broadcastMeetingStarted(roomCode: string, meeting: Meeting, starterDisplayName?: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_STARTED, { roomCode, meeting });
   }
+
+  const content = starterDisplayName
+    ? `${starterDisplayName} started a voice call`
+    : 'Voice call started';
+
+  messageService
+    .sendSystemMessage({
+      roomId: meeting.roomId,
+      memberId: meeting.hostMemberId,
+      content,
+    })
+    .then((sysMsg) => {
+      broadcastNewMessage(roomCode, sysMsg);
+    })
+    .catch((err) => {
+      console.error('[Socket] Error creating meeting started system message:', err);
+    });
 }
 
-export function broadcastMeetingEnded(roomCode: string, meetingId: string): void {
+export function broadcastMeetingEnded(roomCode: string, meetingId: string, endedByName?: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode, meetingId });
   }
+
+  meetingRepository
+    .getMeetingById(meetingId)
+    .then((meeting) => {
+      if (!meeting) return;
+      const content = endedByName ? `${endedByName} ended the voice call` : 'Voice call ended';
+      return messageService.sendSystemMessage({
+        roomId: meeting.roomId,
+        memberId: meeting.hostMemberId,
+        content,
+      });
+    })
+    .then((sysMsg) => {
+      if (sysMsg) {
+        broadcastNewMessage(roomCode, sysMsg);
+      }
+    })
+    .catch((err) => {
+      console.error('[Socket] Error creating meeting ended system message:', err);
+    });
 }
 
 export function broadcastMeetingParticipantJoined(
@@ -62,15 +105,68 @@ export function broadcastMeetingParticipantJoined(
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_JOINED, payload);
   }
+
+  if (!payload.participant.isHost) {
+    meetingRepository
+      .getMeetingById(payload.meetingId)
+      .then((meeting) => {
+        if (!meeting) return;
+        return messageService.sendSystemMessage({
+          roomId: meeting.roomId,
+          memberId: payload.participant.memberId,
+          content: `${payload.participant.displayName} joined the voice call`,
+        });
+      })
+      .then((sysMsg) => {
+        if (sysMsg) {
+          broadcastNewMessage(roomCode, sysMsg);
+        }
+      })
+      .catch((err) => {
+        console.error('[Socket] Error creating participant joined system message:', err);
+      });
+  }
 }
 
 export function broadcastMeetingParticipantLeft(
   roomCode: string,
-  payload: { meetingId: string; memberId: string }
+  payload: { meetingId: string; memberId: string; displayName?: string }
 ): void {
   if (ioInstance) {
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, payload);
+    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, {
+      meetingId: payload.meetingId,
+      memberId: payload.memberId,
+    });
   }
+
+  meetingRepository
+    .getMeetingById(payload.meetingId)
+    .then(async (meeting) => {
+      if (!meeting || meeting.status !== 'ACTIVE') return;
+
+      let name = payload.displayName;
+      if (!name) {
+        const member = await prisma.member.findUnique({
+          where: { id: payload.memberId },
+          select: { displayName: true },
+        });
+        name = member?.displayName || 'Someone';
+      }
+
+      return messageService.sendSystemMessage({
+        roomId: meeting.roomId,
+        memberId: payload.memberId,
+        content: `${name} left the voice call`,
+      });
+    })
+    .then((sysMsg) => {
+      if (sysMsg) {
+        broadcastNewMessage(roomCode, sysMsg);
+      }
+    })
+    .catch((err) => {
+      console.error('[Socket] Error creating participant left system message:', err);
+    });
 }
 
 export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
@@ -445,9 +541,10 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
           if (!session || session.roomCode !== roomCode) return;
 
           await meetingRepository.leaveMeeting(meetingId, session.memberId);
-          io.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, {
+          broadcastMeetingParticipantLeft(roomCode, {
             meetingId,
             memberId: session.memberId,
+            displayName: session.displayName,
           });
         } catch (error) {
           console.error('[Socket] Error leaving meeting:', error);
@@ -481,9 +578,10 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
             .then((activeMeeting) => {
               if (activeMeeting) {
                 meetingRepository.leaveMeeting(activeMeeting.id, memberId).catch(() => {});
-                socket.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, {
+                broadcastMeetingParticipantLeft(roomCode, {
                   meetingId: activeMeeting.id,
                   memberId,
+                  displayName: session.displayName,
                 });
               }
             })

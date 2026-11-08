@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { roomService } from './room.service';
 import { ZodError } from 'zod';
 import { createIpRateLimiter } from '../../middleware/rate-limit';
-import { broadcastRoomClosed, broadcastRoomTimeExtended } from '../../socket';
+import { broadcastRoomClosed, broadcastRoomTimeExtended, broadcastNewMessage } from '../../socket';
+import { messageService } from '../messages/message.service';
 import { meetingRouter } from '../meetings/meeting.controller';
 
 const router = Router();
@@ -72,6 +73,19 @@ router.post('/:code/join', joinRoomLimiter, async (req: Request, res: Response) 
   try {
     const { code } = req.params;
     const result = await roomService.joinRoom(code, req.body);
+
+    // Persist and broadcast system message to room chat
+    try {
+      const sysMsg = await messageService.sendSystemMessage({
+        roomId: result.room.id,
+        memberId: result.member.id,
+        content: `${result.member.displayName} joined the room`,
+      });
+      broadcastNewMessage(code, sysMsg);
+    } catch (e) {
+      console.error('[Room] Failed to send join system message:', e);
+    }
+
     res.json({
       success: true,
       data: result,

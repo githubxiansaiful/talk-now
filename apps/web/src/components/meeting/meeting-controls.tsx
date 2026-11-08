@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Mic,
   MicOff,
-  Settings2,
+  Volume2,
   Users,
   MessageSquare,
   PhoneOff,
@@ -72,7 +72,7 @@ export function MeetingControls({
             title="Audio input & output settings"
             aria-label="Audio settings"
           >
-            <Settings2 className="w-4 h-4 text-[#7657E8]" />
+            <Volume2 className="w-4 h-4 text-[#7657E8]" />
             <span className="hidden md:inline">Audio</span>
           </Button>
 

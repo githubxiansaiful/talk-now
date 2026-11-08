@@ -32,13 +32,14 @@ export class MessageRepository {
     roomId: string;
     memberId: string;
     content: string;
+    messageType?: 'TEXT' | 'SYSTEM';
   }): Promise<Message> {
     const message = await prisma.message.create({
       data: {
         roomId: data.roomId,
         memberId: data.memberId,
         content: data.content,
-        messageType: 'TEXT',
+        messageType: (data.messageType as 'TEXT' | 'SYSTEM') || 'TEXT',
       },
       include: {
         member: {
@@ -57,7 +58,7 @@ export class MessageRepository {
       senderName: message.member.displayName,
       senderIsCreator: message.member.isCreator,
       content: message.content,
-      messageType: 'TEXT',
+      messageType: message.messageType as 'TEXT' | 'SYSTEM',
       createdAt: message.createdAt.toISOString(),
       editedAt: message.editedAt?.toISOString() || null,
       deletedAt: message.deletedAt?.toISOString() || null,

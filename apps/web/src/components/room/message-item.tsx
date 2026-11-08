@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '@talknow/shared';
 import { formatTime } from '@/lib/utils';
-import { Smile, Plus, Copy, Check, Crown } from 'lucide-react';
+import { Smile, Plus, Copy, Check, Crown, Phone, PhoneOff, UserPlus, Sparkles } from 'lucide-react';
 import { EmojiPickerPopover } from './emoji-picker-popover';
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -85,12 +85,29 @@ export function MessageItem({
     return () => window.removeEventListener('mousedown', handleClickOutside);
   }, [showReactionMenu]);
 
-  // Render system notifications cleanly as a centered pill
+  // Render system notifications cleanly as a centered pill (Messenger / Telegram style)
   if (message.messageType === 'SYSTEM') {
+    const contentLower = message.content.toLowerCase();
+    const isCall = contentLower.includes('call');
+    const isCallEnd = isCall && (contentLower.includes('left') || contentLower.includes('end'));
+    const isRoomJoin = contentLower.includes('room');
+
     return (
-      <div className="flex justify-center my-2 select-none">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--surface)]/90 border border-[var(--border)] text-[11px] text-[var(--text-secondary)] shadow-2xs">
-          <span>{message.content}</span>
+      <div className="flex justify-center my-2.5 select-none animate-in fade-in duration-200">
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[var(--surface)]/95 dark:bg-[var(--surface-secondary)]/90 border border-[var(--border)]/80 text-xs text-[var(--text-secondary)] shadow-2xs backdrop-blur-xs">
+          {isCallEnd ? (
+            <PhoneOff className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+          ) : isCall ? (
+            <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+          ) : isRoomJoin ? (
+            <UserPlus className="w-3.5 h-3.5 text-[#7657E8] shrink-0" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5 text-[#7657E8] shrink-0" />
+          )}
+          <span className="font-medium text-[var(--text)] text-[11.5px]">{message.content}</span>
+          <span className="text-[10px] text-[var(--text-muted)] font-mono ml-0.5 tabular-nums">
+            {formatTime(message.createdAt)}
+          </span>
         </div>
       </div>
     );

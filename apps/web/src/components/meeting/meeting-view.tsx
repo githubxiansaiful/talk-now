@@ -235,10 +235,10 @@ export function MeetingView({
 
       {/* Main Body with Participant Area and Optional Side Drawer */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Central Participant Tiles Grid */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col items-center justify-center relative">
+        {/* Central Participant Tiles Grid (always centered vertically & horizontally) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex items-center justify-center relative min-h-0">
           <div
-            className={`grid gap-3.5 sm:gap-5 w-full justify-items-center transition-all duration-300 ${getGridClasses(
+            className={`m-auto grid gap-4 sm:gap-6 w-full justify-items-center transition-all duration-300 ${getGridClasses(
               allParticipants.length
             )}`}
           >
@@ -248,7 +248,10 @@ export function MeetingView({
               const isCurrentMuted = isSelf ? isMuted : p.isMuted;
 
               return (
-                <div key={p.memberId} className="w-full aspect-4/3 sm:aspect-auto sm:h-54">
+                <div
+                  key={p.memberId}
+                  className="w-full max-w-sm sm:max-w-md aspect-4/3 sm:aspect-auto sm:h-56 flex items-center justify-center"
+                >
                   <ParticipantTile
                     participant={p}
                     isSelf={isSelf}
@@ -262,140 +265,120 @@ export function MeetingView({
         </div>
 
         {/* Slide-out Participants Drawer */}
-        <div
-          className={`fixed sm:relative inset-y-0 right-0 z-40 sm:z-20 flex transition-all duration-300 ease-in-out ${
-            isParticipantsOpen
-              ? 'pointer-events-auto visible sm:w-80'
-              : 'pointer-events-none invisible sm:w-0'
-          }`}
-        >
-          {/* Mobile backdrop */}
-          <div
-            className={`fixed inset-0 bg-black/50 backdrop-blur-2xs sm:hidden transition-opacity duration-300 ease-out ${
-              isParticipantsOpen ? 'opacity-100' : 'opacity-0'
-            }`}
-            onClick={() => setIsParticipantsOpen(false)}
-          />
+        {isParticipantsOpen && (
+          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-20 flex">
+            {/* Mobile backdrop */}
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-2xs sm:hidden z-10 animate-in fade-in duration-200"
+              onClick={() => setIsParticipantsOpen(false)}
+            />
 
-          <aside
-            className={`relative ml-auto w-full sm:w-80 max-w-[100vw] h-full border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-10 shadow-2xl sm:shadow-none transform transition-transform duration-300 ease-out ${
-              isParticipantsOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
-            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--surface)]">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#7657E8]" />
-                <h3 className="text-sm font-bold text-[var(--text)]">
-                  In Call ({allParticipants.length})
-                </h3>
+            <aside className="relative ml-auto w-full sm:w-80 max-w-[100vw] h-full border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-20 shadow-2xl sm:shadow-none animate-in slide-in-from-right duration-250 ease-out">
+              <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--surface)]">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#7657E8]" />
+                  <h3 className="text-sm font-bold text-[var(--text)]">
+                    In Call ({allParticipants.length})
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsParticipantsOpen(false)}
+                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
+                  aria-label="Close participants drawer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsParticipantsOpen(false)}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
-                aria-label="Close participants drawer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-1 bg-[var(--surface)]">
-              {allParticipants.map((p) => {
-                const isSelf = p.memberId === currentUser.id;
-                const isCurrentMuted = isSelf ? isMuted : p.isMuted;
-                const isCurrentSpeaking = isSelf ? audioLevel > 15 && !isMuted : p.isSpeaking;
+              <div className="flex-1 overflow-y-auto p-3 space-y-1 bg-[var(--surface)]">
+                {allParticipants.map((p) => {
+                  const isSelf = p.memberId === currentUser.id;
+                  const isCurrentMuted = isSelf ? isMuted : p.isMuted;
+                  const isCurrentSpeaking = isSelf ? audioLevel > 15 && !isMuted : p.isSpeaking;
 
-                return (
-                  <div
-                    key={p.memberId}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-[#7657E8]/12 text-[#7657E8] font-bold text-xs flex items-center justify-center shrink-0 border border-[#7657E8]/20">
-                        {p.displayName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-semibold text-[var(--text)] truncate">
-                            {p.displayName}
-                          </span>
-                          {isSelf && (
-                            <span className="text-[10px] text-[#7657E8] font-medium">(You)</span>
+                  return (
+                    <div
+                      key={p.memberId}
+                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-[#7657E8]/12 text-[#7657E8] font-bold text-xs flex items-center justify-center shrink-0 border border-[#7657E8]/20">
+                          {p.displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-[var(--text)] truncate">
+                              {p.displayName}
+                            </span>
+                            {isSelf && (
+                              <span className="text-[10px] text-[#7657E8] font-medium">(You)</span>
+                            )}
+                          </div>
+                          {p.isHost && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-0.5 font-medium">
+                              <Crown className="w-2.5 h-2.5" /> Host
+                            </span>
                           )}
                         </div>
-                        {p.isHost && (
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-0.5 font-medium">
-                            <Crown className="w-2.5 h-2.5" /> Host
+                      </div>
+
+                      <div className="shrink-0 text-xs">
+                        {isCurrentMuted ? (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-semibold">
+                            Muted
                           </span>
+                        ) : isCurrentSpeaking ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/12 text-emerald-500 text-[10px] font-semibold animate-pulse">
+                            Speaking
+                          </span>
+                        ) : (
+                          <span className="text-[var(--text-muted)] text-[11px]">Listening</span>
                         )}
                       </div>
                     </div>
-
-                    <div className="shrink-0 text-xs">
-                      {isCurrentMuted ? (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-semibold">
-                          Muted
-                        </span>
-                      ) : isCurrentSpeaking ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/12 text-emerald-500 text-[10px] font-semibold animate-pulse">
-                          Speaking
-                        </span>
-                      ) : (
-                        <span className="text-[var(--text-muted)] text-[11px]">Listening</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-        </div>
+                  );
+                })}
+              </div>
+            </aside>
+          </div>
+        )}
 
         {/* Slide-out Text Chat Drawer during meeting */}
-        <div
-          className={`fixed sm:relative inset-y-0 right-0 z-40 sm:z-20 flex transition-all duration-300 ease-in-out ${
-            isChatOpen
-              ? 'pointer-events-auto visible sm:w-96'
-              : 'pointer-events-none invisible sm:w-0'
-          }`}
-        >
-          {/* Mobile backdrop */}
-          <div
-            className={`fixed inset-0 bg-black/50 backdrop-blur-2xs sm:hidden transition-opacity duration-300 ease-out ${
-              isChatOpen ? 'opacity-100' : 'opacity-0'
-            }`}
-            onClick={() => setIsChatOpen(false)}
-          />
+        {isChatOpen && (
+          <div className="fixed sm:relative inset-y-0 right-0 z-40 sm:z-20 flex">
+            {/* Mobile backdrop */}
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-2xs sm:hidden z-10 animate-in fade-in duration-200"
+              onClick={() => setIsChatOpen(false)}
+            />
 
-          <aside
-            className={`relative ml-auto w-full sm:w-96 max-w-[100vw] h-full border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-10 shadow-2xl sm:shadow-none transform transition-transform duration-300 ease-out ${
-              isChatOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
-            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--surface)]">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#7657E8]" />
-                <h3 className="text-sm font-bold text-[var(--text)]">Room Chat</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsChatOpen(false)}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
-                aria-label="Close room chat drawer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-[var(--surface)]">
-              {chatDrawerNode || (
-                <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-[var(--text-secondary)]">
-                  Chat is active and synced with the main room.
+            <aside className="relative ml-auto w-full sm:w-96 max-w-[100vw] h-full border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-20 shadow-2xl sm:shadow-none animate-in slide-in-from-right duration-250 ease-out">
+              <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--surface)]">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-[#7657E8]" />
+                  <h3 className="text-sm font-bold text-[var(--text)]">Room Chat</h3>
                 </div>
-              )}
-            </div>
-          </aside>
-        </div>
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(false)}
+                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
+                  aria-label="Close room chat drawer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-[var(--surface)]">
+                {chatDrawerNode || (
+                  <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-[var(--text-secondary)]">
+                    Chat is active and synced with the main room.
+                  </div>
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
       </div>
 
       {/* Audio Device Settings Modal */}

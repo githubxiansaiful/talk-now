@@ -1,5 +1,6 @@
 import { messageRepository } from './message.repository';
 import { sendMessageSchema, Message } from '@talknow/shared';
+import { prisma } from '../../lib/prisma';
 
 export class MessageService {
   async sendMessage(data: {
@@ -16,6 +17,35 @@ export class MessageService {
       roomId: validated.roomId,
       memberId: data.memberId,
       content: validated.content,
+      messageType: 'TEXT',
+    });
+  }
+
+  async sendSystemMessage(data: {
+    roomId: string;
+    memberId?: string;
+    content: string;
+  }): Promise<Message> {
+    let memberId = data.memberId;
+    if (!memberId) {
+      const fallback = await prisma.member.findFirst({
+        where: { roomId: data.roomId },
+        orderBy: { isCreator: 'desc' },
+      });
+      if (fallback) {
+        memberId = fallback.id;
+      }
+    }
+
+    if (!memberId) {
+      throw new Error('Cannot create system message without a member in the room');
+    }
+
+    return messageRepository.createMessage({
+      roomId: data.roomId,
+      memberId,
+      content: data.content,
+      messageType: 'SYSTEM',
     });
   }
 
