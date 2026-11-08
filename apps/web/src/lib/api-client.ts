@@ -1,6 +1,9 @@
 import { Room, Member, Meeting, MeetingParticipant, MeetingTokenResponse } from '@talknow/shared';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_SERVER_URL ||
+  process.env.NEXT_PUBLIC_SOCKET_URL ||
+  'http://localhost:4000';
 
 export interface CreateRoomInput {
   displayName: string;
