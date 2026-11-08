@@ -11,6 +11,8 @@ export function isOriginAllowed(origin: string | undefined): boolean {
     : [];
 
   if (
+    webOrigin === '*' ||
+    allowedList.includes('*') ||
     normalized === 'http://localhost:3000' ||
     normalized === 'http://127.0.0.1:3000' ||
     allowedList.includes(normalized)
@@ -18,10 +20,15 @@ export function isOriginAllowed(origin: string | undefined): boolean {
     return true;
   }
 
-  // Allow Cloudflare Pages deployments (*.pages.dev)
+  // Allow Vercel (*.vercel.app) and Cloudflare Pages (*.pages.dev) deployments
   try {
     const url = new URL(origin);
-    if (url.hostname.endsWith('.pages.dev')) {
+    if (
+      url.hostname.endsWith('.vercel.app') ||
+      url.hostname.endsWith('.pages.dev') ||
+      url.hostname === 'localhost' ||
+      url.hostname === '127.0.0.1'
+    ) {
       return true;
     }
   } catch {}
@@ -34,9 +41,17 @@ export const corsOptions: CorsOptions = {
     if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+      callback(null, false);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-creator-token',
+    'x-session-token',
+    'x-room-code',
+  ],
+  optionsSuccessStatus: 200,
 };

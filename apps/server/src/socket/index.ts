@@ -177,7 +177,7 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
         if (isOriginAllowed(origin)) {
           callback(null, true);
         } else {
-          callback(new Error(`Origin ${origin} not allowed by CORS`));
+          callback(null, false);
         }
       },
       methods: ['GET', 'POST'],

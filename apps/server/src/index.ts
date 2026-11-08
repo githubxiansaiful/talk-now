@@ -10,6 +10,7 @@ import { startExpiryScheduler } from './jobs/expire-rooms';
 const app = express();
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Health check endpoint
