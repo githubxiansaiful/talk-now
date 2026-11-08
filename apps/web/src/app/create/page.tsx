@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Clock, Users, Shuffle, ShieldCheck } from 'lucide-react';
-import { AppLogo } from '@/components/common/app-logo';
-import { ThemeToggle } from '@/components/common/theme-toggle';
+import { Clock, Users, Shuffle, ShieldCheck } from 'lucide-react';
+import { SiteHeader } from '@/components/common/site-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api-client';
@@ -94,22 +92,8 @@ export default function CreateRoomPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <AppLogo size="sm" />
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link
-              href="/"
-              className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors"
-              aria-label="Back to home"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* Unified Site Header */}
+      <SiteHeader />
 
       {/* Main content */}
       <main className="flex-1 max-w-xl w-full mx-auto px-4 py-8 sm:py-12">
@@ -148,7 +132,7 @@ export default function CreateRoomPage() {
               <Input
                 id="displayName"
                 type="text"
-                placeholder="e.g. Alex, Sam, CosmicFox..."
+                placeholder="Enter your display name"
                 value={displayName}
                 onChange={(e) => {
                   setDisplayName(e.target.value);
@@ -170,7 +154,7 @@ export default function CreateRoomPage() {
               <Input
                 id="roomName"
                 type="text"
-                placeholder="e.g. Product brainstorm, Gaming squad..."
+                placeholder="Enter a room name or topic"
                 value={roomName}
                 onChange={(e) => {
                   setRoomName(e.target.value);

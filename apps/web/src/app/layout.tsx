@@ -14,8 +14,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'TalkNow — Instant Temporary Group Conversations',
-  description: 'Create a private room, share one link, and chat with anyone instantly. No signups, no apps, no permanent logs.',
+  title: {
+    default: 'TalkNow — Instant Temporary Group Chat & Voice Rooms',
+    template: '%s | TalkNow',
+  },
+  description:
+    'Create a private, self-destructing group room, share one link, and collaborate over real-time text chat and live audio calls. Zero accounts, zero downloads, and no permanent logs.',
+  keywords: [
+    'temporary chat room',
+    'private group chat',
+    'ephemeral chat',
+    'instant voice room',
+    'no signup chat',
+    'self-destructing chat room',
+    'link-based group chat',
+    'TalkNow',
+  ],
+  openGraph: {
+    title: 'TalkNow — Instant Temporary Group Chat & Voice Rooms',
+    description:
+      'Create a private, self-destructing group room, share one link, and talk in real time. No accounts, no apps, no permanent logs.',
+    type: 'website',
+    siteName: 'TalkNow',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TalkNow — Instant Temporary Group Chat & Voice Rooms',
+    description:
+      'Create a private, self-destructing group room, share one link, and talk in real time. No accounts, no apps, no permanent logs.',
+  },
   icons: {
     icon: '/favicon.ico',
   },

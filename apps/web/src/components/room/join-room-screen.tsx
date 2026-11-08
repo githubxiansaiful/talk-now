@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Users, Clock, LogIn, ShieldCheck, Shuffle } from 'lucide-react';
-import { AppLogo } from '@/components/common/app-logo';
-import { ThemeToggle } from '@/components/common/theme-toggle';
+import { Users, Clock, LogIn, Shuffle } from 'lucide-react';
+import { SiteHeader } from '@/components/common/site-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatRemainingTime } from '@/lib/utils';
@@ -60,21 +58,7 @@ export function JoinRoomScreen({
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <AppLogo size="sm" />
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link
-              href="/"
-              className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors"
-              aria-label="Back to home"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 sm:py-10 flex flex-col justify-center">
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 sm:p-8 shadow-xs">
@@ -127,7 +111,7 @@ export function JoinRoomScreen({
               <Input
                 id="joinName"
                 type="text"
-                placeholder="e.g. Alex, Maria, QuietBreeze..."
+                placeholder="Enter your display name"
                 value={displayName}
                 onChange={(e) => {
                   setDisplayName(e.target.value);

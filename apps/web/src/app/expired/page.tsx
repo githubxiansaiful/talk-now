@@ -1,28 +1,19 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Clock, Plus, ArrowLeft, ShieldCheck } from 'lucide-react';
-import { AppLogo } from '@/components/common/app-logo';
-import { ThemeToggle } from '@/components/common/theme-toggle';
+import { Clock, Plus, ShieldCheck } from 'lucide-react';
+import { SiteHeader } from '@/components/common/site-header';
 import { Button } from '@/components/ui/button';
+
+export const metadata: Metadata = {
+  title: 'Room Expired',
+  description:
+    'This temporary TalkNow conversation room has ended and all messages and member sessions have been permanently purged.',
+};
 
 export default function ExpiredPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors"
-              aria-label="Back to home"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <AppLogo size="sm" />
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Main content */}
       <main className="flex-1 max-w-md w-full mx-auto px-4 py-16 flex flex-col justify-center text-center">

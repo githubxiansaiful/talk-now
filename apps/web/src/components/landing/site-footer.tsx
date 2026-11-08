@@ -25,6 +25,9 @@ export function SiteFooter() {
             <Link href="/#features" className="hover:text-[var(--text)] transition-colors">
               Features
             </Link>
+            <Link href="/#faq" className="hover:text-[var(--text)] transition-colors">
+              FAQ
+            </Link>
             <Link href="/privacy" className="hover:text-[var(--text)] transition-colors">
               Privacy
             </Link>

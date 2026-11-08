@@ -61,8 +61,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 PORT=4000
 WEB_ORIGIN=http://localhost:3000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/talknow?schema=public
-SESSION_SECRET=your_long_random_secret_here
+DATABASE_URL=
+SESSION_SECRET=
 ```
 
 ### 4. Database Setup

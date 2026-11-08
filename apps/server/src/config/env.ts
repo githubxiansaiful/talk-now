@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -11,7 +12,7 @@ export const ENV = {
   WEB_ORIGIN: process.env.WEB_ORIGIN || 'http://localhost:3000',
   DATABASE_URL: process.env.DATABASE_URL || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
-  SESSION_SECRET: process.env.SESSION_SECRET || 'talknow_default_development_session_secret_32chars',
+  SESSION_SECRET: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   IS_PROD: process.env.NODE_ENV === 'production',
   LIVEKIT_URL: process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || '',
   LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY || '',

@@ -1,27 +1,18 @@
-import Link from 'next/link';
-import { ArrowLeft, FileText, CheckCircle2 } from 'lucide-react';
-import { AppLogo } from '@/components/common/app-logo';
-import { ThemeToggle } from '@/components/common/theme-toggle';
+import type { Metadata } from 'next';
+import { FileText, CheckCircle2 } from 'lucide-react';
+import { SiteHeader } from '@/components/common/site-header';
+import { SiteFooter } from '@/components/landing/site-footer';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description:
+    'Read the Terms of Use for TalkNow temporary group chat and real-time voice communication rooms.',
+};
 
 export default function TermsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] transition-colors"
-              aria-label="Back to home"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <AppLogo size="sm" />
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Main content */}
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-12 sm:py-16">
@@ -72,6 +63,7 @@ export default function TermsPage() {
           </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
