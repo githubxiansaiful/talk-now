@@ -21,8 +21,10 @@ COPY packages/shared ./packages/shared
 COPY packages/database ./packages/database
 COPY apps/server ./apps/server
 
-# Generate Prisma Client & build
+# Build shared, generate prisma client, build database, build server
+RUN pnpm --filter @talknow/shared build
 RUN pnpm --filter @talknow/database db:generate
+RUN pnpm --filter @talknow/database build
 RUN pnpm --filter @talknow/server build
 
 FROM base AS runner
@@ -30,20 +32,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/config/package.json ./packages/config/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/database/package.json ./packages/database/
-COPY apps/server/package.json ./apps/server/
+# Copy node_modules (including Prisma generated client and all dependencies)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
-# Install production dependencies
-RUN pnpm install --prod --frozen-lockfile
-
-# Copy built code and database client
+# Copy packages and server
 COPY --from=builder /app/packages/config ./packages/config
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/database ./packages/database
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
+COPY --from=builder /app/apps/server ./apps/server
 
 EXPOSE 4000
 
