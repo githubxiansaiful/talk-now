@@ -565,12 +565,14 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
           const session = socketSessions.get(socket.id);
           if (!session || session.roomCode !== roomCode) return;
 
-          await meetingRepository.leaveMeeting(meetingId, session.memberId);
-          broadcastMeetingParticipantLeft(roomCode, {
-            meetingId,
-            memberId: session.memberId,
-            displayName: session.displayName,
-          });
+          const actuallyLeft = await meetingRepository.leaveMeeting(meetingId, session.memberId);
+          if (actuallyLeft) {
+            broadcastMeetingParticipantLeft(roomCode, {
+              meetingId,
+              memberId: session.memberId,
+              displayName: session.displayName,
+            });
+          }
         } catch (error) {
           console.error('[Socket] Error leaving meeting:', error);
         }
@@ -600,14 +602,16 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
           // Clean up active meeting participant
           meetingRepository
             .getActiveMeeting(session.roomId)
-            .then((activeMeeting) => {
+            .then(async (activeMeeting) => {
               if (activeMeeting) {
-                meetingRepository.leaveMeeting(activeMeeting.id, memberId).catch(() => {});
-                broadcastMeetingParticipantLeft(roomCode, {
-                  meetingId: activeMeeting.id,
-                  memberId,
-                  displayName: session.displayName,
-                });
+                const actuallyLeft = await meetingRepository.leaveMeeting(activeMeeting.id, memberId);
+                if (actuallyLeft) {
+                  broadcastMeetingParticipantLeft(roomCode, {
+                    meetingId: activeMeeting.id,
+                    memberId,
+                    displayName: session.displayName,
+                  });
+                }
               }
             })
             .catch(() => {});

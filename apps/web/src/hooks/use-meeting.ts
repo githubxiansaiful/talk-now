@@ -678,12 +678,6 @@ export function useMeeting({
     if (meeting && sessionToken) {
       try {
         await apiClient.leaveMeeting(roomCode, meeting.id, sessionToken, currentUser.id);
-        if (socket) {
-          socket.emit(SOCKET_EVENTS.MEETING_LEAVE, {
-            roomCode,
-            meetingId: meeting.id,
-          });
-        }
       } catch (err) {
         console.warn('[Meeting] Error leaving meeting:', err);
       }
@@ -695,7 +689,7 @@ export function useMeeting({
     setIsMinimized(false);
     setIsPreJoinOpen(false);
     setMeetingDuration(0);
-  }, [cleanupAudioConnections, currentUser.id, meeting, roomCode, sessionToken, socket, stopLocalStream]);
+  }, [cleanupAudioConnections, currentUser.id, meeting, roomCode, sessionToken, stopLocalStream]);
 
   // End Meeting for Everyone (Host or room creator)
   const endMeeting = useCallback(async () => {

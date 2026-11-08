@@ -309,6 +309,20 @@ export function ChatLayout({
     const handleNewMessage = (msg: Message) => {
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
+
+        // Deduplicate duplicate identical system notices received within 3.5s
+        if (msg.messageType === 'SYSTEM') {
+          const isDuplicateSystemNotice = prev.some((m) => {
+            if (m.messageType !== 'SYSTEM') return false;
+            if (m.content !== msg.content) return false;
+            const diff = Math.abs(
+              new Date(msg.createdAt).getTime() - new Date(m.createdAt).getTime()
+            );
+            return diff < 3500;
+          });
+          if (isDuplicateSystemNotice) return prev;
+        }
+
         return [...prev, msg];
       });
 

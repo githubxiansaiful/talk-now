@@ -95,14 +95,14 @@ export class MeetingService {
   /**
    * Leaves a meeting
    */
-  async leaveMeeting(meetingId: string, sessionToken: string): Promise<void> {
+  async leaveMeeting(meetingId: string, sessionToken: string): Promise<boolean> {
     const meeting = await meetingRepository.getMeetingById(meetingId);
-    if (!meeting) return;
+    if (!meeting) return false;
 
     const member = await roomRepository.verifySession(meeting.roomId, sessionToken);
-    if (!member) return;
+    if (!member) return false;
 
-    await meetingRepository.leaveMeeting(meetingId, member.id);
+    return meetingRepository.leaveMeeting(meetingId, member.id);
   }
 
   /**

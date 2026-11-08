@@ -120,18 +120,19 @@ router.post('/:meetingId/leave', async (req: Request, res: Response) => {
     const sessionToken = (req.headers['x-session-token'] as string) || req.body?.sessionToken;
     const memberId = req.body?.memberId;
 
+    let actuallyLeft = false;
     if (sessionToken) {
-      await meetingService.leaveMeeting(meetingId, sessionToken);
+      actuallyLeft = await meetingService.leaveMeeting(meetingId, sessionToken);
     }
 
-    if (memberId) {
+    if (actuallyLeft && memberId) {
       broadcastMeetingParticipantLeft(code, {
         meetingId,
         memberId,
       });
     }
 
-    res.json({ success: true });
+    res.json({ success: true, actuallyLeft });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to leave meeting';
     res.status(400).json({ success: false, error: message });

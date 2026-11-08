@@ -131,10 +131,10 @@ export class MeetingRepository {
   }
 
   /**
-   * Marks participant as left
+   * Marks participant as left (returns true if participant was active and now marked left)
    */
-  async leaveMeeting(meetingId: string, memberId: string): Promise<void> {
-    await prisma.meetingParticipant.updateMany({
+  async leaveMeeting(meetingId: string, memberId: string): Promise<boolean> {
+    const result = await prisma.meetingParticipant.updateMany({
       where: {
         meetingId,
         memberId,
@@ -144,6 +144,7 @@ export class MeetingRepository {
         leftAt: new Date(),
       },
     });
+    return result.count > 0;
   }
 
   /**
