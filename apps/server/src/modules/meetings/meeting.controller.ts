@@ -22,7 +22,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { meeting, tokenData } = await meetingService.startMeeting(code, sessionToken);
+    const { meeting, tokenData, participants } = await meetingService.startMeeting(code, sessionToken);
 
     // Broadcast meeting:started to all members in the room channel
     broadcastMeetingStarted(code, meeting, tokenData.displayName);
@@ -32,6 +32,7 @@ router.post('/', async (req: Request, res: Response) => {
       data: {
         meeting,
         tokenData,
+        participants,
       },
     });
   } catch (error) {
@@ -75,7 +76,7 @@ router.post('/:meetingId/join', async (req: Request, res: Response) => {
       return;
     }
 
-    const { meeting, tokenData } = await meetingService.joinMeeting(code, meetingId, sessionToken);
+    const { meeting, tokenData, participants } = await meetingService.joinMeeting(code, meetingId, sessionToken);
 
     // Broadcast participant joined
     broadcastMeetingParticipantJoined(code, {
@@ -98,6 +99,7 @@ router.post('/:meetingId/join', async (req: Request, res: Response) => {
       data: {
         meeting,
         tokenData,
+        participants,
       },
     });
   } catch (error) {

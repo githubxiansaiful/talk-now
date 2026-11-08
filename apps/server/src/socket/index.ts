@@ -350,18 +350,13 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
             return;
           }
 
-          // Check if room is still active
-          const room = await roomRepository.findByCode(roomCode);
-          if (!room || room.status !== 'ACTIVE') {
-            socket.emit(SOCKET_EVENTS.ROOM_EXPIRED, { message: 'Room has expired or closed' });
-            return;
-          }
-
-          // Persist message in PostgreSQL
+          // Persist message in PostgreSQL directly with fast single insert
           const message = await messageService.sendMessage({
             roomId: session.roomId,
             memberId: session.memberId,
             content: content.trim(),
+            senderName: session.displayName,
+            senderIsCreator: session.isCreator,
           });
 
           // Broadcast saved message to all sockets in the room

@@ -152,7 +152,7 @@ export const apiClient = {
   async startMeeting(
     code: string,
     sessionToken: string
-  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse }> {
+  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse; participants?: MeetingParticipant[] }> {
     const res = await fetch(`${API_BASE_URL}/api/rooms/${code}/meetings`, {
       method: 'POST',
       headers: {
@@ -188,7 +188,7 @@ export const apiClient = {
     code: string,
     meetingId: string,
     sessionToken: string
-  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse }> {
+  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse; participants?: MeetingParticipant[] }> {
     const res = await fetch(`${API_BASE_URL}/api/rooms/${code}/meetings/${meetingId}/join`, {
       method: 'POST',
       headers: {

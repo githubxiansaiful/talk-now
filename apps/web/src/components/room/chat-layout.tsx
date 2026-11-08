@@ -310,6 +310,20 @@ export function ChatLayout({
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
 
+        // Replace matching optimistic temporary message from current user
+        const tempIndex = prev.findIndex(
+          (m) =>
+            m.id.startsWith('temp-') &&
+            m.memberId === msg.memberId &&
+            m.content === msg.content
+        );
+
+        if (tempIndex !== -1) {
+          const next = [...prev];
+          next[tempIndex] = msg;
+          return next;
+        }
+
         // Deduplicate duplicate identical system notices received within 3.5s
         if (msg.messageType === 'SYSTEM') {
           const isDuplicateSystemNotice = prev.some((m) => {
@@ -419,6 +433,8 @@ export function ChatLayout({
 
     // Message rejected (e.g. rate limit)
     const handleMessageRejected = (data: { error: string }) => {
+      // Remove any pending optimistic temporary messages
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
       setRejectionNotice(data.error);
       toast.error('Message rejected', {
         description: data.error,
@@ -485,9 +501,27 @@ export function ChatLayout({
 
     playSendSound();
 
+    const trimmed = content.trim();
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    // Instant 0ms Optimistic UI update
+    const optimisticMsg: Message = {
+      id: tempId,
+      roomId: roomCode,
+      memberId: currentUser.id,
+      senderName: currentUser.displayName,
+      senderIsCreator: currentUser.isCreator,
+      content: trimmed,
+      messageType: 'TEXT',
+      createdAt: new Date().toISOString(),
+      reactions: [],
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+
     socket.emit(SOCKET_EVENTS.MESSAGE_SEND, {
       roomCode,
-      content: content.trim(),
+      content: trimmed,
       sessionToken,
     });
 

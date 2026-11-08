@@ -7,6 +7,8 @@ export class MessageService {
     roomId: string;
     memberId: string;
     content: string;
+    senderName?: string;
+    senderIsCreator?: boolean;
   }): Promise<Message> {
     const validated = sendMessageSchema.parse({
       roomId: data.roomId,
@@ -18,6 +20,8 @@ export class MessageService {
       memberId: data.memberId,
       content: validated.content,
       messageType: 'TEXT',
+      senderName: data.senderName,
+      senderIsCreator: data.senderIsCreator,
     });
   }
 

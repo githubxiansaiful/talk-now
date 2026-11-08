@@ -11,25 +11,28 @@ export class MeetingService {
   async startMeeting(
     roomCode: string,
     sessionToken: string
-  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse }> {
-    const room = await roomRepository.findByCode(roomCode);
-    if (!room) {
-      throw new Error('Room not found');
+  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse; participants: MeetingParticipant[] }> {
+    const verified = await roomRepository.verifySessionAndRoom(roomCode, sessionToken);
+    if (!verified) {
+      throw new Error('Unauthorized or room is no longer active');
     }
 
-    if (room.status !== 'ACTIVE') {
-      throw new Error(`Cannot start meeting: room is ${room.status.toLowerCase()}`);
-    }
+    const meeting = await meetingRepository.startMeeting(verified.room.id, verified.member.id);
+    const tokenData = await this.generateToken(meeting.id, verified.member.id, verified.member.displayName, true);
+    const participants: MeetingParticipant[] = [
+      {
+        id: 'p-' + verified.member.id,
+        meetingId: meeting.id,
+        memberId: verified.member.id,
+        displayName: verified.member.displayName,
+        isHost: true,
+        isMuted: false,
+        isSpeaking: false,
+        joinedAt: new Date().toISOString(),
+      },
+    ];
 
-    const member = await roomRepository.verifySession(room.id, sessionToken);
-    if (!member) {
-      throw new Error('Unauthorized: Invalid member session');
-    }
-
-    const meeting = await meetingRepository.startMeeting(room.id, member.id);
-    const tokenData = await this.generateToken(meeting.id, member.id, member.displayName, true);
-
-    return { meeting, tokenData };
+    return { meeting, tokenData, participants };
   }
 
   /**
@@ -55,19 +58,10 @@ export class MeetingService {
     roomCode: string,
     meetingId: string,
     sessionToken: string
-  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse }> {
-    const room = await roomRepository.findByCode(roomCode);
-    if (!room) {
-      throw new Error('Room not found');
-    }
-
-    if (room.status !== 'ACTIVE') {
-      throw new Error('Cannot join meeting: room is no longer active');
-    }
-
-    const member = await roomRepository.verifySession(room.id, sessionToken);
-    if (!member) {
-      throw new Error('Unauthorized: Invalid member session');
+  ): Promise<{ meeting: Meeting; tokenData: MeetingTokenResponse; participants: MeetingParticipant[] }> {
+    const verified = await roomRepository.verifySessionAndRoom(roomCode, sessionToken);
+    if (!verified) {
+      throw new Error('Unauthorized or room is no longer active');
     }
 
     const meetingRecord = await meetingRepository.getMeetingById(meetingId);
@@ -75,21 +69,29 @@ export class MeetingService {
       throw new Error('Meeting not found or has already ended');
     }
 
-    if (meetingRecord.roomId !== room.id) {
+    if (meetingRecord.roomId !== verified.room.id) {
       throw new Error('Meeting does not belong to this room');
     }
 
-    await meetingRepository.joinMeeting(meetingId, member.id);
+    await meetingRepository.joinMeeting(meetingId, verified.member.id);
 
-    const isHost = meetingRecord.hostMemberId === member.id;
-    const tokenData = await this.generateToken(meetingId, member.id, member.displayName, isHost);
+    const isHost = meetingRecord.hostMemberId === verified.member.id;
+    const tokenData = await this.generateToken(meetingId, verified.member.id, verified.member.displayName, isHost);
 
-    const updated = await meetingRepository.getActiveMeeting(room.id);
-    if (!updated) {
-      throw new Error('Failed to retrieve meeting state');
-    }
+    const participants = await meetingRepository.getActiveParticipants(meetingId);
 
-    return { meeting: updated, tokenData };
+    const updatedMeeting: Meeting = {
+      id: meetingRecord.id,
+      roomId: meetingRecord.roomId,
+      status: meetingRecord.status as 'ACTIVE' | 'ENDED',
+      hostMemberId: meetingRecord.hostMemberId,
+      hostDisplayName: meetingRecord.hostMember?.displayName,
+      startedAt: meetingRecord.startedAt.toISOString(),
+      endedAt: null,
+      participantCount: participants.length,
+    };
+
+    return { meeting: updatedMeeting, tokenData, participants };
   }
 
   /**

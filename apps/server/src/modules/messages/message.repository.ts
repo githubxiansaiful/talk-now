@@ -33,7 +33,34 @@ export class MessageRepository {
     memberId: string;
     content: string;
     messageType?: 'TEXT' | 'SYSTEM';
+    senderName?: string;
+    senderIsCreator?: boolean;
   }): Promise<Message> {
+    if (data.senderName) {
+      const message = await prisma.message.create({
+        data: {
+          roomId: data.roomId,
+          memberId: data.memberId,
+          content: data.content,
+          messageType: (data.messageType as 'TEXT' | 'SYSTEM') || 'TEXT',
+        },
+      });
+
+      return {
+        id: message.id,
+        roomId: message.roomId,
+        memberId: message.memberId,
+        senderName: data.senderName,
+        senderIsCreator: data.senderIsCreator ?? false,
+        content: message.content,
+        messageType: message.messageType as 'TEXT' | 'SYSTEM',
+        createdAt: message.createdAt.toISOString(),
+        editedAt: null,
+        deletedAt: null,
+        reactions: [],
+      };
+    }
+
     const message = await prisma.message.create({
       data: {
         roomId: data.roomId,

@@ -586,13 +586,25 @@ export function useMeeting({
     if (!sessionToken) return;
     setIsStarting(true);
     try {
-      const { meeting: newMeeting, tokenData } = await apiClient.startMeeting(roomCode, sessionToken);
+      const { meeting: newMeeting, tokenData, participants: initialParticipants } = await apiClient.startMeeting(roomCode, sessionToken);
       currentTokenDataRef.current = tokenData;
       meetingRef.current = newMeeting;
       setMeeting(newMeeting);
       setIsInMeeting(true);
       setIsMinimized(false);
       setIsPreJoinOpen(false);
+
+      const hostParticipant: MeetingParticipant = {
+        id: 'p-' + currentUser.id,
+        meetingId: newMeeting.id,
+        memberId: currentUser.id,
+        displayName: currentUser.displayName,
+        isHost: true,
+        isMuted: isMutedRef.current,
+        isSpeaking: false,
+        joinedAt: new Date().toISOString(),
+      };
+      setParticipants(initialParticipants && initialParticipants.length > 0 ? initialParticipants : [hostParticipant]);
 
       if (!localStreamRef.current) {
         await startLocalAudioStream(selectedAudioInput);
@@ -612,9 +624,6 @@ export function useMeeting({
       if (!connectedLiveKit) {
         await initWebRTCMesh([]);
       }
-
-      const activeParticipants = await apiClient.getMeetingParticipants(roomCode, newMeeting.id);
-      setParticipants(activeParticipants);
     } catch (err: unknown) {
       console.error('[Meeting] Failed to start meeting:', err);
       toast.error('Failed to start call', {
@@ -623,14 +632,14 @@ export function useMeeting({
     } finally {
       setIsStarting(false);
     }
-  }, [connectLiveKit, initWebRTCMesh, roomCode, selectedAudioInput, sessionToken, startLocalAudioStream]);
+  }, [connectLiveKit, currentUser.displayName, currentUser.id, initWebRTCMesh, roomCode, selectedAudioInput, sessionToken, startLocalAudioStream]);
 
   // Join Meeting
   const joinMeeting = useCallback(async () => {
     if (!sessionToken || !meeting) return;
     setIsJoining(true);
     try {
-      const { meeting: updatedMeeting, tokenData } = await apiClient.joinMeeting(
+      const { meeting: updatedMeeting, tokenData, participants: activeParticipants } = await apiClient.joinMeeting(
         roomCode,
         meeting.id,
         sessionToken
@@ -642,12 +651,13 @@ export function useMeeting({
       setIsMinimized(false);
       setIsPreJoinOpen(false);
 
+      if (activeParticipants) {
+        setParticipants(activeParticipants);
+      }
+
       if (!localStreamRef.current) {
         await startLocalAudioStream(selectedAudioInput);
       }
-
-      const activeParticipants = await apiClient.getMeetingParticipants(roomCode, meeting.id);
-      setParticipants(activeParticipants);
 
       let connectedLiveKit = false;
       if (tokenData.serverUrl !== 'local' && tokenData.token) {
@@ -661,7 +671,7 @@ export function useMeeting({
       }
 
       if (!connectedLiveKit) {
-        await initWebRTCMesh(activeParticipants);
+        await initWebRTCMesh(activeParticipants || []);
       }
     } catch (err: unknown) {
       console.error('[Meeting] Failed to join meeting:', err);

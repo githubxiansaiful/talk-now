@@ -297,6 +297,48 @@ export class RoomRepository {
       isOnline: true,
     };
   }
+
+  /**
+   * Fast 1-query verification of member session and room active status
+   */
+  async verifySessionAndRoom(
+    code: string,
+    sessionToken: string
+  ): Promise<{ room: { id: string; status: string }; member: Member } | null> {
+    const sessionTokenHash = hashToken(sessionToken);
+    const member = await prisma.member.findFirst({
+      where: {
+        sessionTokenHash,
+        leftAt: null,
+        room: { code },
+      },
+      include: {
+        room: {
+          select: { id: true, status: true, expiresAt: true },
+        },
+      },
+    });
+
+    if (!member) return null;
+
+    if (member.room.status !== 'ACTIVE' || isPastDate(member.room.expiresAt)) {
+      return null;
+    }
+
+    return {
+      room: { id: member.room.id, status: member.room.status },
+      member: {
+        id: member.id,
+        roomId: member.roomId,
+        displayName: member.displayName,
+        joinedAt: member.joinedAt.toISOString(),
+        lastSeenAt: member.lastSeenAt.toISOString(),
+        leftAt: member.leftAt ? member.leftAt.toISOString() : null,
+        isCreator: member.isCreator,
+        isOnline: true,
+      },
+    };
+  }
 }
 
 export const roomRepository = new RoomRepository();
