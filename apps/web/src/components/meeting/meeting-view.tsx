@@ -262,9 +262,27 @@ export function MeetingView({
         </div>
 
         {/* Slide-out Participants Drawer */}
-        {isParticipantsOpen && (
-          <aside className="w-full sm:w-80 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-30 animate-in slide-in-from-right duration-200">
-            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div
+          className={`fixed sm:relative inset-y-0 right-0 z-40 sm:z-20 flex transition-all duration-300 ease-in-out ${
+            isParticipantsOpen
+              ? 'pointer-events-auto visible sm:w-80'
+              : 'pointer-events-none invisible sm:w-0'
+          }`}
+        >
+          {/* Mobile backdrop */}
+          <div
+            className={`fixed inset-0 bg-black/50 backdrop-blur-2xs sm:hidden transition-opacity duration-300 ease-out ${
+              isParticipantsOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setIsParticipantsOpen(false)}
+          />
+
+          <aside
+            className={`relative ml-auto w-full sm:w-80 max-w-[100vw] h-full border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-10 shadow-2xl sm:shadow-none transform transition-transform duration-300 ease-out ${
+              isParticipantsOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--surface)]">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#7657E8]" />
                 <h3 className="text-sm font-bold text-[var(--text)]">
@@ -274,14 +292,14 @@ export function MeetingView({
               <button
                 type="button"
                 onClick={() => setIsParticipantsOpen(false)}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
                 aria-label="Close participants drawer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+            <div className="flex-1 overflow-y-auto p-3 space-y-1 bg-[var(--surface)]">
               {allParticipants.map((p) => {
                 const isSelf = p.memberId === currentUser.id;
                 const isCurrentMuted = isSelf ? isMuted : p.isMuted;
@@ -331,12 +349,30 @@ export function MeetingView({
               })}
             </div>
           </aside>
-        )}
+        </div>
 
         {/* Slide-out Text Chat Drawer during meeting */}
-        {isChatOpen && (
-          <aside className="w-full sm:w-96 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-30 animate-in slide-in-from-right duration-200">
-            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div
+          className={`fixed sm:relative inset-y-0 right-0 z-40 sm:z-20 flex transition-all duration-300 ease-in-out ${
+            isChatOpen
+              ? 'pointer-events-auto visible sm:w-96'
+              : 'pointer-events-none invisible sm:w-0'
+          }`}
+        >
+          {/* Mobile backdrop */}
+          <div
+            className={`fixed inset-0 bg-black/50 backdrop-blur-2xs sm:hidden transition-opacity duration-300 ease-out ${
+              isChatOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setIsChatOpen(false)}
+          />
+
+          <aside
+            className={`relative ml-auto w-full sm:w-96 max-w-[100vw] h-full border-l border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 z-10 shadow-2xl sm:shadow-none transform transition-transform duration-300 ease-out ${
+              isChatOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <div className="h-14 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--surface)]">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[#7657E8]" />
                 <h3 className="text-sm font-bold text-[var(--text)]">Room Chat</h3>
@@ -344,14 +380,14 @@ export function MeetingView({
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
                 aria-label="Close room chat drawer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-[var(--surface)]">
               {chatDrawerNode || (
                 <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-[var(--text-secondary)]">
                   Chat is active and synced with the main room.
@@ -359,7 +395,7 @@ export function MeetingView({
               )}
             </div>
           </aside>
-        )}
+        </div>
       </div>
 
       {/* Audio Device Settings Modal */}
