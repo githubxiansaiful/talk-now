@@ -2,8 +2,20 @@ import { prisma } from '../../lib/prisma';
 import { Message, MessageReactionSummary } from '@talknow/shared';
 
 function formatReactions(reactions: Array<{ emoji: string; memberId: string }>): MessageReactionSummary[] {
+  // Enforce that each member only has at most one reaction per message
+  const seenMembers = new Set<string>();
+  const sanitized: Array<{ emoji: string; memberId: string }> = [];
+
+  for (let i = reactions.length - 1; i >= 0; i--) {
+    const r = reactions[i];
+    if (!seenMembers.has(r.memberId)) {
+      seenMembers.add(r.memberId);
+      sanitized.unshift(r);
+    }
+  }
+
   const map = new Map<string, string[]>();
-  for (const r of reactions) {
+  for (const r of sanitized) {
     const list = map.get(r.emoji) || [];
     list.push(r.memberId);
     map.set(r.emoji, list);
@@ -93,29 +105,37 @@ export class MessageRepository {
     memberId: string,
     emoji: string
   ): Promise<MessageReactionSummary[]> {
-    const existing = await prisma.reaction.findUnique({
-      where: {
-        messageId_memberId_emoji: {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.reaction.findMany({
+        where: {
           messageId,
           memberId,
-          emoji,
         },
-      },
-    });
+      });
 
-    if (existing) {
-      await prisma.reaction.delete({
-        where: { id: existing.id },
-      });
-    } else {
-      await prisma.reaction.create({
-        data: {
+      const hasSameEmoji = existing.some((r) => r.emoji === emoji);
+
+      // Always remove any existing reaction(s) for this member on this message
+      // so a user can only ever have at most one reaction per message
+      await tx.reaction.deleteMany({
+        where: {
           messageId,
           memberId,
-          emoji,
         },
       });
-    }
+
+      // If user did not already react with this exact emoji, add the new reaction
+      // (If they did, deleting toggles it off completely)
+      if (!hasSameEmoji) {
+        await tx.reaction.create({
+          data: {
+            messageId,
+            memberId,
+            emoji,
+          },
+        });
+      }
+    });
 
     return this.getMessageReactions(messageId);
   }

@@ -480,9 +480,55 @@ export function ChatLayout({
     socket.emit(SOCKET_EVENTS.TYPING_STOP, { roomCode });
   };
 
-  // Handle message reaction
+  // Handle message reaction (enforcing at most one reaction per user per message)
   const handleReact = (messageId: string, emoji: string) => {
     if (!socket || !isConnected) return;
+
+    // Optimistically update reactions so the UI is instantaneous
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== messageId) return msg;
+
+        const currentReactions = msg.reactions || [];
+        const prevUserReaction = currentReactions.find((r) =>
+          r.memberIds.includes(currentUser.id)
+        );
+
+        // Remove the user from any existing reaction
+        let nextReactions = currentReactions.map((r) => {
+          const filtered = r.memberIds.filter((id) => id !== currentUser.id);
+          return {
+            ...r,
+            memberIds: filtered,
+            count: filtered.length,
+          };
+        });
+
+        // If the user clicked a DIFFERENT emoji (or had none), add their new reaction
+        if (!prevUserReaction || prevUserReaction.emoji !== emoji) {
+          const target = nextReactions.find((r) => r.emoji === emoji);
+          if (target) {
+            target.memberIds.push(currentUser.id);
+            target.count = target.memberIds.length;
+          } else {
+            nextReactions.push({
+              emoji,
+              count: 1,
+              memberIds: [currentUser.id],
+            });
+          }
+        }
+
+        // Drop any reactions that now have 0 count
+        nextReactions = nextReactions.filter((r) => r.count > 0);
+
+        return {
+          ...msg,
+          reactions: nextReactions,
+        };
+      })
+    );
+
     socket.emit(SOCKET_EVENTS.MESSAGE_REACT, {
       roomCode,
       messageId,
