@@ -5,15 +5,33 @@
       <stop offset="100%" stop-color="#9B82F3" />
     </linearGradient>
   </defs>
-  <!-- Background Squircle -->
+  <!-- Background Brand Squircle -->
   <rect width="32" height="32" rx="8" fill="url(#talknow-grad)" />
-  <!-- TalkNow Speech Bubble -->
-  <path
-    d="M25 18a2 2 0 0 1-2 2H11l-5 4V8a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2z"
-    fill="#FFFFFF"
-  />
-  <!-- Voice / Sound frequency bars inside bubble -->
-  <line x1="12" y1="11.5" x2="12" y2="16.5" stroke="#7657E8" stroke-width="2" stroke-linecap="round" />
-  <line x1="16" y1="9.5" x2="16" y2="18.5" stroke="#7657E8" stroke-width="2.2" stroke-linecap="round" />
-  <line x1="20" y1="12" x2="20" y2="16" stroke="#7657E8" stroke-width="2" stroke-linecap="round" />
+  <!-- Lucide message-square-share icon -->
+  <g transform="translate(4, 4)">
+    <path
+      d="M12 3H4a2 2 0 0 0-2 2v16.286a.71.71 0 0 0 1.212.502l2.202-2.202A2 2 0 0 1 6.828 19H20a2 2 0 0 0 2-2v-4"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M16 3h6v6"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="m16 9 6-6"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
 </svg>

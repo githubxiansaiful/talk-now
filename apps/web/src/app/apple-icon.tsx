@@ -21,20 +21,18 @@ export default function AppleIcon() {
         }}
       >
         <svg
-          width="116"
-          height="116"
-          viewBox="0 0 32 32"
+          width="112"
+          height="112"
+          viewBox="0 0 24 24"
           fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          {/* TalkNow Speech Bubble */}
-          <path
-            d="M25 18a2 2 0 0 1-2 2H11l-5 4V8a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2z"
-            fill="#FFFFFF"
-          />
-          {/* Voice frequency bars */}
-          <line x1="12" y1="11.5" x2="12" y2="16.5" stroke="#7657E8" strokeWidth="2" strokeLinecap="round" />
-          <line x1="16" y1="9.5" x2="16" y2="18.5" stroke="#7657E8" strokeWidth="2.2" strokeLinecap="round" />
-          <line x1="20" y1="12" x2="20" y2="16" stroke="#7657E8" strokeWidth="2" strokeLinecap="round" />
+          <path d="M12 3H4a2 2 0 0 0-2 2v16.286a.71.71 0 0 0 1.212.502l2.202-2.202A2 2 0 0 1 6.828 19H20a2 2 0 0 0 2-2v-4" />
+          <path d="M16 3h6v6" />
+          <path d="m16 9 6-6" />
         </svg>
       </div>
     ),
