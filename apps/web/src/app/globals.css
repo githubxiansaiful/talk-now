@@ -56,6 +56,47 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+/* Subtle architectural grid background for landing sections */
+.bg-grid-pattern {
+  background-size: 36px 36px;
+  background-image: 
+    linear-gradient(to right, rgba(118, 87, 232, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(118, 87, 232, 0.06) 1px, transparent 1px);
+}
+
+.dark .bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(138, 110, 240, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(138, 110, 240, 0.08) 1px, transparent 1px);
+}
+
+/* Audio equalizer wave animation */
+@keyframes sound-wave {
+  0%, 100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-wave-1 {
+  animation: sound-wave 1s infinite ease-in-out;
+}
+.animate-wave-2 {
+  animation: sound-wave 0.8s infinite ease-in-out 0.15s;
+}
+.animate-wave-3 {
+  animation: sound-wave 1.1s infinite ease-in-out 0.3s;
+}
+.animate-wave-4 {
+  animation: sound-wave 0.9s infinite ease-in-out 0.45s;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
