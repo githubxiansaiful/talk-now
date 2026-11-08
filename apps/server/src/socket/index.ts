@@ -8,6 +8,7 @@ import { meetingRepository } from '../modules/meetings/meeting.repository';
 import { hashToken } from '../utils/room-code';
 import { prisma } from '../lib/prisma';
 import { checkSocketMessageRateLimit } from '../middleware/rate-limit';
+import { isOriginAllowed } from '../config/cors';
 
 interface SocketSession {
   roomId: string;
@@ -172,7 +173,13 @@ export function broadcastMeetingParticipantLeft(
 export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: [ENV.WEB_ORIGIN, 'http://localhost:3000'],
+      origin: (origin, callback) => {
+        if (isOriginAllowed(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
