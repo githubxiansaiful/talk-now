@@ -7,6 +7,7 @@
     "dev:web": "pnpm --filter @talknow/web dev",
     "dev:server": "pnpm --filter @talknow/server dev",
     "build": "turbo run build",
+    "build:web": "turbo run build --filter=@talknow/web...",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "db:generate": "pnpm --filter @talknow/database db:generate",
