@@ -9,6 +9,15 @@ import { toast } from 'sonner';
 
 export type MicPermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported';
 
+const RTC_CONFIG: RTCConfiguration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+  ],
+  iceCandidatePoolSize: 10,
+};
+
 interface UseMeetingOptions {
   roomCode: string;
   sessionToken: string;
@@ -61,6 +70,14 @@ export function useMeeting({
   const isMutedRef = useRef(isMuted);
   const meetingRef = useRef<Meeting | null>(meeting);
   const socketRef = useRef<Socket | null>(socket);
+  const isInMeetingRef = useRef(isInMeeting);
+  const selectedAudioOutputRef = useRef(selectedAudioOutput);
+
+  // WebRTC Mesh refs
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const remoteAudioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const isUsingLiveKitRef = useRef(false);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
@@ -73,6 +90,14 @@ export function useMeeting({
   useEffect(() => {
     socketRef.current = socket;
   }, [socket]);
+
+  useEffect(() => {
+    isInMeetingRef.current = isInMeeting;
+  }, [isInMeeting]);
+
+  useEffect(() => {
+    selectedAudioOutputRef.current = selectedAudioOutput;
+  }, [selectedAudioOutput]);
 
   // Query available audio input & output devices
   const updateDeviceList = useCallback(async () => {
@@ -216,7 +241,18 @@ export function useMeeting({
     async (deviceId: string) => {
       setSelectedAudioInput(deviceId);
       if (isPreJoinOpen || isInMeeting) {
-        await startLocalAudioStream(deviceId);
+        const stream = await startLocalAudioStream(deviceId);
+        if (stream) {
+          const newTrack = stream.getAudioTracks()[0];
+          if (newTrack) {
+            peerConnectionsRef.current.forEach((pc) => {
+              const sender = pc.getSenders().find((s) => s.track && s.track.kind === 'audio');
+              if (sender) {
+                sender.replaceTrack(newTrack).catch(() => {});
+              }
+            });
+          }
+        }
       }
       if (livekitRoomRef.current) {
         try {
@@ -239,6 +275,12 @@ export function useMeeting({
         console.warn('[Meeting] Failed to switch LiveKit audiooutput device:', err);
       }
     }
+    remoteAudioElementsRef.current.forEach((el) => {
+      const sinkEl = el as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
+      if (typeof sinkEl.setSinkId === 'function') {
+        sinkEl.setSinkId(deviceId).catch(() => {});
+      }
+    });
     attachedAudioElementsRef.current.forEach((el) => {
       const sinkEl = el as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
       if (typeof sinkEl.setSinkId === 'function') {
@@ -282,8 +324,27 @@ export function useMeeting({
     });
   }, [meeting, roomCode, socket]);
 
-  // Disconnect LiveKit & clean up attached DOM audio elements
-  const disconnectLiveKit = useCallback(() => {
+  // Clean up all audio: WebRTC mesh peers, remote audio elements, and LiveKit
+  const cleanupAudioConnections = useCallback(() => {
+    peerConnectionsRef.current.forEach((pc) => {
+      try {
+        pc.ontrack = null;
+        pc.onicecandidate = null;
+        pc.close();
+      } catch {}
+    });
+    peerConnectionsRef.current.clear();
+    pendingCandidatesRef.current.clear();
+
+    remoteAudioElementsRef.current.forEach((el) => {
+      try {
+        el.pause();
+        el.srcObject = null;
+        el.remove();
+      } catch {}
+    });
+    remoteAudioElementsRef.current.clear();
+
     attachedAudioElementsRef.current.forEach((el) => {
       try {
         el.pause();
@@ -299,7 +360,145 @@ export function useMeeting({
       } catch {}
       livekitRoomRef.current = null;
     }
+
+    isUsingLiveKitRef.current = false;
   }, []);
+
+  // Create or retrieve an RTCPeerConnection for a remote peer
+  const createPeerConnection = useCallback(
+    (remoteMemberId: string): RTCPeerConnection => {
+      const existing = peerConnectionsRef.current.get(remoteMemberId);
+      if (existing) {
+        try {
+          existing.close();
+        } catch {}
+      }
+
+      const pc = new RTCPeerConnection(RTC_CONFIG);
+      peerConnectionsRef.current.set(remoteMemberId, pc);
+
+      // Attach local audio track
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          try {
+            pc.addTrack(track, localStreamRef.current!);
+          } catch (err) {
+            console.warn('[WebRTC] Error adding local track:', err);
+          }
+        });
+      }
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current && meetingRef.current) {
+          socketRef.current.emit(SOCKET_EVENTS.MEETING_SIGNAL, {
+            roomCode,
+            meetingId: meetingRef.current.id,
+            targetMemberId: remoteMemberId,
+            signal: {
+              type: 'ice-candidate',
+              candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
+            },
+          });
+        }
+      };
+
+      // Receive remote audio track
+      pc.ontrack = (event) => {
+        const stream = event.streams[0] || new MediaStream([event.track]);
+
+        let audioEl = remoteAudioElementsRef.current.get(remoteMemberId);
+        if (!audioEl) {
+          audioEl = document.createElement('audio');
+          audioEl.autoplay = true;
+          audioEl.setAttribute('playsinline', 'true');
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+          remoteAudioElementsRef.current.set(remoteMemberId, audioEl);
+          attachedAudioElementsRef.current.push(audioEl);
+        }
+
+        audioEl.srcObject = stream;
+        if (selectedAudioOutputRef.current && 'setSinkId' in audioEl) {
+          const sinkEl = audioEl as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
+          if (typeof sinkEl.setSinkId === 'function') {
+            sinkEl.setSinkId(selectedAudioOutputRef.current).catch(() => {});
+          }
+        }
+
+        audioEl.play().catch((playErr) => {
+          console.warn('[WebRTC] Autoplay pending user interaction:', playErr);
+        });
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+          try {
+            pc.close();
+          } catch {}
+          peerConnectionsRef.current.delete(remoteMemberId);
+        }
+      };
+
+      return pc;
+    },
+    [roomCode]
+  );
+
+  // Initiate an SDP offer to a specific remote peer
+  const initiateOffer = useCallback(
+    async (remoteMemberId: string) => {
+      try {
+        const pc = createPeerConnection(remoteMemberId);
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false,
+        });
+        await pc.setLocalDescription(offer);
+
+        if (socketRef.current && meetingRef.current) {
+          socketRef.current.emit(SOCKET_EVENTS.MEETING_SIGNAL, {
+            roomCode,
+            meetingId: meetingRef.current.id,
+            targetMemberId: remoteMemberId,
+            signal: {
+              type: 'offer',
+              sdp: offer,
+            },
+          });
+        }
+      } catch (err) {
+        console.error('[WebRTC] Error initiating offer:', err);
+      }
+    },
+    [createPeerConnection, roomCode]
+  );
+
+  // Initialize WebRTC Mesh
+  const initWebRTCMesh = useCallback(
+    async (existingParticipants?: MeetingParticipant[]) => {
+      isUsingLiveKitRef.current = false;
+
+      // Broadcast join signal to notify all call participants
+      if (socketRef.current && meetingRef.current) {
+        socketRef.current.emit(SOCKET_EVENTS.MEETING_SIGNAL, {
+          roomCode,
+          meetingId: meetingRef.current.id,
+          signal: { type: 'join' },
+        });
+      }
+
+      // For any existing participant where currentUser.id < remoteMemberId, create offer deterministically
+      if (existingParticipants && existingParticipants.length > 0) {
+        for (const p of existingParticipants) {
+          if (p.memberId !== currentUser.id && currentUser.id < p.memberId) {
+            initiateOffer(p.memberId);
+          }
+        }
+      }
+    },
+    [currentUser.id, initiateOffer, roomCode]
+  );
 
   // Connect to LiveKit if serverUrl is configured
   const connectLiveKit = useCallback(
@@ -309,7 +508,7 @@ export function useMeeting({
       }
 
       try {
-        disconnectLiveKit();
+        cleanupAudioConnections();
         const { Room, RoomEvent } = await import('livekit-client');
         const lkRoom = new Room({
           adaptiveStream: true,
@@ -361,7 +560,7 @@ export function useMeeting({
         console.warn('[Meeting] LiveKit connection warning, operating in Web Audio mode:', err);
       }
     },
-    [disconnectLiveKit, selectedAudioInput]
+    [cleanupAudioConnections, selectedAudioInput]
   );
 
   // Open Pre-join Screen
@@ -399,7 +598,20 @@ export function useMeeting({
         await startLocalAudioStream(selectedAudioInput);
       }
 
-      await connectLiveKit(tokenData);
+      let connectedLiveKit = false;
+      if (tokenData.serverUrl !== 'local' && tokenData.token) {
+        try {
+          await connectLiveKit(tokenData);
+          connectedLiveKit = true;
+          isUsingLiveKitRef.current = true;
+        } catch (lkErr) {
+          console.warn('[Meeting] LiveKit failed, falling back to WebRTC mesh:', lkErr);
+        }
+      }
+
+      if (!connectedLiveKit) {
+        await initWebRTCMesh([]);
+      }
 
       const activeParticipants = await apiClient.getMeetingParticipants(roomCode, newMeeting.id);
       setParticipants(activeParticipants);
@@ -411,7 +623,7 @@ export function useMeeting({
     } finally {
       setIsStarting(false);
     }
-  }, [connectLiveKit, roomCode, selectedAudioInput, sessionToken, startLocalAudioStream]);
+  }, [connectLiveKit, initWebRTCMesh, roomCode, selectedAudioInput, sessionToken, startLocalAudioStream]);
 
   // Join Meeting
   const joinMeeting = useCallback(async () => {
@@ -434,10 +646,23 @@ export function useMeeting({
         await startLocalAudioStream(selectedAudioInput);
       }
 
-      await connectLiveKit(tokenData);
-
       const activeParticipants = await apiClient.getMeetingParticipants(roomCode, meeting.id);
       setParticipants(activeParticipants);
+
+      let connectedLiveKit = false;
+      if (tokenData.serverUrl !== 'local' && tokenData.token) {
+        try {
+          await connectLiveKit(tokenData);
+          connectedLiveKit = true;
+          isUsingLiveKitRef.current = true;
+        } catch (lkErr) {
+          console.warn('[Meeting] LiveKit failed, falling back to WebRTC mesh:', lkErr);
+        }
+      }
+
+      if (!connectedLiveKit) {
+        await initWebRTCMesh(activeParticipants);
+      }
     } catch (err: unknown) {
       console.error('[Meeting] Failed to join meeting:', err);
       toast.error('Failed to join call', {
@@ -446,7 +671,7 @@ export function useMeeting({
     } finally {
       setIsJoining(false);
     }
-  }, [connectLiveKit, meeting, roomCode, selectedAudioInput, sessionToken, startLocalAudioStream]);
+  }, [connectLiveKit, initWebRTCMesh, meeting, roomCode, selectedAudioInput, sessionToken, startLocalAudioStream]);
 
   // Leave Meeting (stay in room)
   const leaveMeeting = useCallback(async () => {
@@ -464,20 +689,20 @@ export function useMeeting({
       }
     }
 
-    disconnectLiveKit();
+    cleanupAudioConnections();
     stopLocalStream();
     setIsInMeeting(false);
     setIsMinimized(false);
     setIsPreJoinOpen(false);
     setMeetingDuration(0);
-  }, [currentUser.id, disconnectLiveKit, meeting, roomCode, sessionToken, socket, stopLocalStream]);
+  }, [cleanupAudioConnections, currentUser.id, meeting, roomCode, sessionToken, socket, stopLocalStream]);
 
   // End Meeting for Everyone (Host or room creator)
   const endMeeting = useCallback(async () => {
     if (!meeting || !sessionToken) return;
     try {
       await apiClient.endMeeting(roomCode, meeting.id, sessionToken, creatorToken);
-      disconnectLiveKit();
+      cleanupAudioConnections();
       stopLocalStream();
       setMeeting(null);
       setIsInMeeting(false);
@@ -491,7 +716,7 @@ export function useMeeting({
         description: err instanceof Error ? err.message : 'Only the host can end the call.',
       });
     }
-  }, [creatorToken, disconnectLiveKit, meeting, roomCode, sessionToken, stopLocalStream]);
+  }, [cleanupAudioConnections, creatorToken, meeting, roomCode, sessionToken, stopLocalStream]);
 
   // Check active meeting on mount
   useEffect(() => {
@@ -543,6 +768,13 @@ export function useMeeting({
         return [...filtered, data.participant];
       });
       setMeeting((prev) => (prev ? { ...prev, participantCount: data.participantCount } : prev));
+
+      // In WebRTC mesh mode: deterministic initiator creates offer
+      if (isInMeetingRef.current && !isUsingLiveKitRef.current) {
+        if (data.participant.memberId !== currentUser.id && currentUser.id < data.participant.memberId) {
+          initiateOffer(data.participant.memberId);
+        }
+      }
     };
 
     const handleParticipantLeft = (data: { meetingId: string; memberId: string }) => {
@@ -555,6 +787,26 @@ export function useMeeting({
             }
           : prev
       );
+
+      // Clean up peer connection & audio element for this participant
+      const pc = peerConnectionsRef.current.get(data.memberId);
+      if (pc) {
+        try {
+          pc.close();
+        } catch {}
+        peerConnectionsRef.current.delete(data.memberId);
+      }
+      pendingCandidatesRef.current.delete(data.memberId);
+
+      const audioEl = remoteAudioElementsRef.current.get(data.memberId);
+      if (audioEl) {
+        try {
+          audioEl.pause();
+          audioEl.srcObject = null;
+          audioEl.remove();
+        } catch {}
+        remoteAudioElementsRef.current.delete(data.memberId);
+      }
     };
 
     const handleParticipantUpdated = (data: {
@@ -575,7 +827,7 @@ export function useMeeting({
 
     const handleMeetingEnded = (data: { roomCode: string }) => {
       if (data.roomCode === roomCode) {
-        disconnectLiveKit();
+        cleanupAudioConnections();
         stopLocalStream();
         setMeeting(null);
         setIsInMeeting(false);
@@ -586,12 +838,112 @@ export function useMeeting({
       }
     };
 
+    const handleMeetingSignal = async (data: {
+      roomCode: string;
+      meetingId?: string;
+      senderMemberId: string;
+      targetMemberId?: string;
+      signal: {
+        type: 'join' | 'offer' | 'answer' | 'ice-candidate';
+        sdp?: RTCSessionDescriptionInit;
+        candidate?: RTCIceCandidateInit;
+      };
+    }) => {
+      if (isUsingLiveKitRef.current) return;
+      if (!isInMeetingRef.current) return;
+      if (!data || data.senderMemberId === currentUser.id) return;
+      if (data.targetMemberId && data.targetMemberId !== currentUser.id) return;
+
+      const { senderMemberId, signal } = data;
+
+      // Another peer announced they joined: if we are initiator, send offer
+      if (signal.type === 'join') {
+        if (currentUser.id < senderMemberId) {
+          await initiateOffer(senderMemberId);
+        }
+        return;
+      }
+
+      // Received Offer
+      if (signal.type === 'offer' && signal.sdp) {
+        try {
+          const pc = createPeerConnection(senderMemberId);
+          await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+
+          const queued = pendingCandidatesRef.current.get(senderMemberId) || [];
+          for (const cand of queued) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch {}
+          }
+          pendingCandidatesRef.current.delete(senderMemberId);
+
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          if (socketRef.current && meetingRef.current) {
+            socketRef.current.emit(SOCKET_EVENTS.MEETING_SIGNAL, {
+              roomCode,
+              meetingId: meetingRef.current.id,
+              targetMemberId: senderMemberId,
+              signal: {
+                type: 'answer',
+                sdp: answer,
+              },
+            });
+          }
+        } catch (err) {
+          console.error('[WebRTC] Error handling offer:', err);
+        }
+        return;
+      }
+
+      // Received Answer
+      if (signal.type === 'answer' && signal.sdp) {
+        try {
+          const pc = peerConnectionsRef.current.get(senderMemberId);
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+
+            const queued = pendingCandidatesRef.current.get(senderMemberId) || [];
+            for (const cand of queued) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch {}
+            }
+            pendingCandidatesRef.current.delete(senderMemberId);
+          }
+        } catch (err) {
+          console.error('[WebRTC] Error handling answer:', err);
+        }
+        return;
+      }
+
+      // Received ICE Candidate
+      if (signal.type === 'ice-candidate' && signal.candidate) {
+        try {
+          const pc = peerConnectionsRef.current.get(senderMemberId);
+          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          } else {
+            const list = pendingCandidatesRef.current.get(senderMemberId) || [];
+            list.push(signal.candidate);
+            pendingCandidatesRef.current.set(senderMemberId, list);
+          }
+        } catch (err) {
+          console.warn('[WebRTC] Error adding ICE candidate:', err);
+        }
+        return;
+      }
+    };
+
     socket.on(SOCKET_EVENTS.MEETING_STARTED, handleMeetingStarted);
     socket.on(SOCKET_EVENTS.MEETING_STATE, handleMeetingState);
     socket.on(SOCKET_EVENTS.MEETING_PARTICIPANT_JOINED, handleParticipantJoined);
     socket.on(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, handleParticipantLeft);
     socket.on(SOCKET_EVENTS.MEETING_PARTICIPANT_UPDATED, handleParticipantUpdated);
     socket.on(SOCKET_EVENTS.MEETING_ENDED, handleMeetingEnded);
+    socket.on(SOCKET_EVENTS.MEETING_SIGNAL, handleMeetingSignal);
 
     if (socket.connected) {
       socket.emit(SOCKET_EVENTS.MEETING_STATE_REQUEST, { roomCode });
@@ -604,10 +956,13 @@ export function useMeeting({
       socket.off(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, handleParticipantLeft);
       socket.off(SOCKET_EVENTS.MEETING_PARTICIPANT_UPDATED, handleParticipantUpdated);
       socket.off(SOCKET_EVENTS.MEETING_ENDED, handleMeetingEnded);
+      socket.off(SOCKET_EVENTS.MEETING_SIGNAL, handleMeetingSignal);
     };
   }, [
+    cleanupAudioConnections,
+    createPeerConnection,
     currentUser.id,
-    disconnectLiveKit,
+    initiateOffer,
     roomCode,
     selectedAudioInput,
     socket,
@@ -642,13 +997,36 @@ export function useMeeting({
     };
   }, [meeting?.startedAt, isInMeeting]);
 
+  // Autoplay unlocker on user interaction
+  useEffect(() => {
+    if (!isInMeeting) return;
+    const unlockAudio = () => {
+      remoteAudioElementsRef.current.forEach((el) => {
+        if (el.paused) {
+          el.play().catch(() => {});
+        }
+      });
+      attachedAudioElementsRef.current.forEach((el) => {
+        if (el.paused) {
+          el.play().catch(() => {});
+        }
+      });
+    };
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, [isInMeeting]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopLocalStream();
-      disconnectLiveKit();
+      cleanupAudioConnections();
     };
-  }, [disconnectLiveKit, stopLocalStream]);
+  }, [cleanupAudioConnections, stopLocalStream]);
 
   return {
     meeting,

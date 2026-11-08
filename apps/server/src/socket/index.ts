@@ -530,6 +530,31 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     );
 
     /**
+     * Meeting WebRTC Signaling (peer-to-peer audio mesh)
+     */
+    socket.on(
+      SOCKET_EVENTS.MEETING_SIGNAL,
+      (data: {
+        roomCode: string;
+        meetingId?: string;
+        targetMemberId?: string;
+        signal: unknown;
+      }) => {
+        const { roomCode, meetingId, targetMemberId, signal } = data || {};
+        const session = socketSessions.get(socket.id);
+        if (!session || session.roomCode !== roomCode) return;
+
+        socket.to(roomCode).emit(SOCKET_EVENTS.MEETING_SIGNAL, {
+          roomCode,
+          meetingId,
+          senderMemberId: session.memberId,
+          targetMemberId,
+          signal,
+        });
+      }
+    );
+
+    /**
      * Meeting Leave Event
      */
     socket.on(

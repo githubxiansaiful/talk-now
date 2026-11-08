@@ -15,6 +15,7 @@ export const SOCKET_EVENTS = {
   MEETING_END: 'meeting:end',
   MEETING_STATE_REQUEST: 'meeting:state:request',
   MEETING_AUDIO_STATE: 'meeting:audio:state',
+  MEETING_SIGNAL: 'meeting:signal',
 
   // Server to Client
   ROOM_JOINED: 'room:joined',
