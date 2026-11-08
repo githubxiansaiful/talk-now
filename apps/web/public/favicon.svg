@@ -5,23 +5,15 @@
       <stop offset="100%" stop-color="#9B82F3" />
     </linearGradient>
   </defs>
+  <!-- Background Squircle -->
   <rect width="32" height="32" rx="8" fill="url(#talknow-grad)" />
-  <!-- Chat bubble -->
+  <!-- TalkNow Speech Bubble -->
   <path
-    d="M21 16v3a2 2 0 0 1-2 2H9l-4 4V9a2 2 0 0 1 2-2h8"
-    fill="none"
-    stroke="#FFFFFF"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    d="M25 18a2 2 0 0 1-2 2H11l-5 4V8a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2z"
+    fill="#FFFFFF"
   />
-  <!-- Share arrow -->
-  <path
-    d="m16 8 5-5m0 0h-4m4 0v4"
-    fill="none"
-    stroke="#FFFFFF"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
+  <!-- Voice / Sound frequency bars inside bubble -->
+  <line x1="12" y1="11.5" x2="12" y2="16.5" stroke="#7657E8" stroke-width="2" stroke-linecap="round" />
+  <line x1="16" y1="9.5" x2="16" y2="18.5" stroke="#7657E8" stroke-width="2.2" stroke-linecap="round" />
+  <line x1="20" y1="12" x2="20" y2="16" stroke="#7657E8" stroke-width="2" stroke-linecap="round" />
 </svg>
