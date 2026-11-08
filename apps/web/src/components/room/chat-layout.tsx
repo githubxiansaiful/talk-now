@@ -600,8 +600,9 @@ export function ChatLayout({
         unreadChatCount={unreadChatCount}
         onClearUnreadChat={() => setUnreadChatCount(0)}
         chatDrawerNode={
-          <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)]">
-            <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)] relative">
+            <div className="absolute inset-0 chat-wallpaper" />
+            <div className="flex-1 overflow-y-auto relative z-10">
               <MessageList
                 messages={messages}
                 currentMemberId={currentUser.id}
@@ -610,7 +611,7 @@ export function ChatLayout({
                 onOpenInvite={() => setIsShareOpen(true)}
               />
             </div>
-            <div className="p-3 border-t border-[var(--border)] bg-[var(--surface)]">
+            <div className="p-3 border-t border-[var(--border)] bg-[var(--surface)] relative z-10">
               <MessageComposer
                 onSendMessage={handleSendMessage}
                 onTypingStart={handleTypingStart}
@@ -728,13 +729,8 @@ export function ChatLayout({
 
         {/* Main Conversation Column */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--background)] relative">
-          <div
-            className="absolute inset-0 pointer-events-none bg-repeat transition-all duration-200"
-            style={{
-              backgroundImage: 'var(--chat-bg)',
-              backgroundSize: '412px',
-            }}
-          />
+          {/* Chat background wallpaper (chat-background.png) */}
+          <div className="absolute inset-0 chat-wallpaper" />
 
           {/* Message List */}
           <MessageList

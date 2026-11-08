@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --chat-bg: url('/white-chat-bg.png');
+    --chat-bg: url('/chat-background.png');
     --background: #F8F8FC;
     --surface: #FFFFFF;
     --surface-secondary: #F2F1F8;
@@ -28,7 +28,7 @@
   }
 
   .dark {
-    --chat-bg: url('/black-chat-bg.png');
+    --chat-bg: url('/chat-background.png');
     --background: #12121A;
     --surface: #1B1B26;
     --surface-secondary: #242433;
@@ -135,4 +135,20 @@ html {
 .animate-typing-3 {
   animation: typing-bounce 1.4s infinite ease-in-out;
   animation-delay: 0.4s;
+}
+
+/* Chat room wallpaper using chat-background.png */
+.chat-wallpaper {
+  background-image: var(--chat-bg);
+  background-repeat: repeat;
+  background-size: 412px;
+  filter: invert(1);
+  opacity: 0.08;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+  pointer-events: none;
+}
+
+.dark .chat-wallpaper {
+  filter: invert(0);
+  opacity: 0.06;
 }
