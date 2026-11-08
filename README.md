@@ -1,94 +1,82 @@
 # TalkNow
 
-> **Create a room. Invite everyone. Talk instantly. No account needed.**
+> **Create a room. Invite everyone. Talk instantly. No accounts, no downloads, zero footprint.**
 
-TalkNow is a fast, temporary, link-based group conversation web application. Built for instant discussions with zero signups, zero phone numbers, and zero persistent history.
-
----
-
-## 🚀 Key Features
-
-- **Zero-Account Group Rooms:** Anyone can create a room, choose a temporary display name, and share an invite link.
-- **Ephemeral By Design:** Rooms automatically self-destruct after their configured duration (30m, 1h, 6h, 24h). All messages and temporary sessions are irrevocably purged.
-- **Instant Real-Time Chat:** High-speed WebSocket engine powered by Socket.IO for live messaging, online presence, and typing status.
-- **Modern Responsive Design:** Crafted with a clean purple visual identity (`#7657E8`), light and dark mode, adaptive drawer on mobile, and spacious multi-panel view on desktop.
-- **Creator Room Controls:** End or close conversations on-demand.
+TalkNow is an instant, temporary, link-based group conversation platform. It is engineered for people who need to have a quick conversation, meeting, or group chat right now—without forcing anyone to sign up, download software, reveal personal phone numbers, or leave permanent digital trails.
 
 ---
 
-## 📁 Monorepo Architecture
+## 🎯 The Goal & Vision
 
-This project is organized as a **pnpm + Turborepo** monorepo:
+Modern communication platforms (Slack, Teams, Discord, WhatsApp, Zoom) have introduced immense friction to simple conversations: mandatory accounts, phone verification, client downloads, contact syncing, and permanent chat history that lasts forever.
 
-```text
-talknow/
-├── apps/
-│   ├── web/                 # Next.js 16 App Router web application & UI
-│   └── server/              # Node.js + Express + Socket.IO real-time server
-├── packages/
-│   ├── shared/              # Shared TypeScript types, Zod schemas, socket events, constants
-│   ├── database/            # Prisma schema (PostgreSQL) and database client
-│   └── config/              # Shared TypeScript & ESLint configurations
-├── docs/                    # Architecture and design guides
-├── pnpm-workspace.yaml      # Monorepo workspace configuration
-├── turbo.json               # Turbo build orchestration
-└── package.json             # Root scripts
+**TalkNow is built on a simple philosophy: Digital communication should be as immediate, natural, and disposable as walking into a room, having a conversation, and leaving.**
+
+- **Friction-Zero:** Anyone can generate a room in two seconds and share the link. Guests pick a temporary display name and start chatting immediately.
+- **Privacy by Design:** Nothing is permanent. Every room has an expiry countdown. When the timer expires or the creator closes the room, all messages, reactions, participants, and tokens are permanently destroyed from the database.
+- **Instant Voice & Text in One Place:** Seamlessly jump from text chatting into live voice meetings with a single click, right inside the same browser tab.
+
+---
+
+## ✨ Key Features
+
+### 🚀 Zero-Friction Group Rooms
+- **Instant Creation:** Generate a temporary room in one click with optional custom room names.
+- **Shareable Links & QR Codes:** Invite anyone with a clean link, ready-to-share invitation snippets, or scannable QR codes.
+- **No Signups Required:** No emails, passwords, phone numbers, or OAuth logins. Participants just choose a temporary display name.
+- **Host & Creator Badges:** Room creators maintain administrative rights to extend room duration or terminate the session on demand.
+
+### ⏳ Ephemeral & Self-Destructing
+- **Configurable Lifespan:** Set rooms to expire after 15 minutes, 30 minutes, 1 hour, 6 hours, or 24 hours.
+- **Live Expiry Countdown:** Synchronized countdown clock visible to all active participants in real time.
+- **Automated Data Purge:** Background schedulers automatically remove all database records, chat logs, and active sessions once time expires.
+- **On-Demand Extension:** Room creators can extend active sessions whenever discussions run longer than expected.
+
+### 💬 Real-Time Group Chat
+- **High-Speed Messaging:** Bi-directional real-time communication powered by WebSockets.
+- **Inline System Notices:** Messenger-style timeline notices when members join, leave, start calls, or end meetings (replacing intrusive popups).
+- **Interactive Emoji Reactions:** React to any message with emojis, complete with live counters and member attribution.
+- **Typing Indicators:** Real-time feedback when participants are typing.
+- **Intelligent Auto-Scroll:** Smart viewport handling that stays anchored at the latest messages while keeping chat smooth on page refreshes.
+
+### 🎙️ Integrated Voice Calling
+- **One-Click Voice Meetings:** Instantly initiate a group voice call within the room without external conference links.
+- **Low-Latency WebRTC Audio:** Crystal-clear group voice powered by LiveKit SFU with smart fallback.
+- **Microphone Controls & Speaking Indicators:** Quick mute/unmute toggles with animated visual waveforms for active speakers.
+- **Smooth Chat Drawer Animation:** In-meeting sliding chat drawer that glides right-to-left, allowing participants to chat and talk simultaneously without breaking layout.
+- **Dynamic Meeting Grid:** Adaptive speaker tiles displaying avatars, participant status, and host badges.
+
+### 🎨 Modern Responsive Interface
+- **Polished Visual Identity:** Clean theme centered around a signature purple aesthetic (`#7657E8`).
+- **Dark & Light Mode:** Automatic system preference detection with quick manual theme switching.
+- **Cross-Device Support:** Fully optimized experience across desktop browsers, tablets, and mobile screens.
+- **Accessible & High-Contrast:** Intuitive typography, subtle transitions, and touch-friendly controls.
+
+---
+
+## 🏛️ System Architecture
+
+TalkNow operates on a hybrid architecture designed for global speed and resilient WebSocket connections:
+
+```
+[ Web Client / Browser ]
+           │
+           ├──► Frontend (Edge CDN) ─── Fast static asset delivery & SSR
+           │
+           └──► Backend Server (Node.js / Express / Socket.IO)
+                     │
+                     ├──► WebSocket & REST APIs (Room lifecycle, live chat, presence)
+                     ├──► LiveKit SFU (High-performance WebRTC voice routing)
+                     └──► Neon PostgreSQL (Ephemeral room storage & auto-expiry engine)
 ```
 
 ---
 
-## 🛠️ Quick Start & Development
+## 🔒 Privacy & Security Highlights
 
-### 1. Prerequisites
-- Node.js >= 20
-- pnpm >= 9
-- PostgreSQL (Docker or local instance)
-
-### 2. Install dependencies
-```bash
-pnpm install
-```
-
-### 3. Environment Setup
-Copy the example environment file:
-```bash
-cp .env.example .env
-```
-
-Ensure your `.env` contains:
-```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
-PORT=4000
-WEB_ORIGIN=http://localhost:3000
-DATABASE_URL=
-SESSION_SECRET=
-```
-
-### 4. Database Setup
-Generate Prisma client and push schema:
-```bash
-pnpm db:generate
-```
-
-### 5. Run Development Servers
-Start both the Next.js web application and the Node.js Socket.IO server in parallel:
-```bash
-pnpm dev
-```
-Or run individually:
-- Web App: `pnpm dev:web` (http://localhost:3000)
-- Socket Server: `pnpm dev:server` (http://localhost:4000)
-
----
-
-## 🧪 Phase 1 Verification
-
-The Phase 1 release includes:
-- [x] Monorepo workspace structure with `@talknow/shared`, `@talknow/database`, `@talknow/server`, `@talknow/web`
-- [x] Landing page (`/`) with Hero, Quick Join, Workflow, Feature Matrix, and Footer
-- [x] Create Room screen (`/create`) with name generator, duration selector, and capacity options
-- [x] Pre-join screen (`/room/[roomCode]`) validating invitation and requesting display name
-- [x] Responsive Chat Room (`/room/[roomCode]`) with message list, active member roster, typing indicators, share dialog, and room controls
-- [x] Expired room screen (`/expired`)
-- [x] Privacy policy (`/privacy`) and Terms of service (`/terms`)
+> [!IMPORTANT]
+> **TalkNow does not track you.**
+> - No user tracking cookies or third-party analytics trackers.
+> - No phone numbers or email addresses are ever requested or stored.
+> - Cryptographic token hashing ensures only authorized room creators can manage administrative controls.
+> - When a room expires, cascading database deletion permanently wipes all associated data.
