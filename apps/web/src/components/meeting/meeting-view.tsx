@@ -171,8 +171,8 @@ export function MeetingView({
   return (
     <div className="fixed inset-0 z-40 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
       {/* Meeting Top Bar */}
-      <header className="h-14 sm:h-16 px-4 sm:px-6 bg-[var(--surface)]/95 backdrop-blur-md border-b border-[var(--border)] flex items-center justify-between shrink-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="h-14 sm:h-16 px-3 sm:px-6 bg-[var(--surface)]/95 backdrop-blur-md border-b border-[var(--border)] flex items-center justify-between shrink-0 z-30">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="hidden sm:block">
             <AppLogo size="sm" />
           </div>
@@ -180,12 +180,13 @@ export function MeetingView({
           <div className="h-4 w-[1px] bg-[var(--border)] hidden sm:block" />
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
                 <Radio className="w-2.5 h-2.5 animate-pulse" />
-                Live Audio
+                <span className="hidden xs:inline">Live Audio</span>
+                <span className="xs:hidden">Live</span>
               </span>
-              <h1 className="text-sm sm:text-base font-bold text-[var(--text)] truncate">
+              <h1 className="text-xs sm:text-base font-bold text-[var(--text)] truncate">
                 {roomName || `Room ${roomCode}`}
               </h1>
               <span className="hidden md:inline-flex text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
@@ -200,7 +201,7 @@ export function MeetingView({
               <span>•</span>
               <span className="flex items-center gap-1 text-[var(--text-muted)]">
                 <Users className="w-3.5 h-3.5" />
-                {allParticipants.length} {allParticipants.length === 1 ? 'participant' : 'participants'}
+                {allParticipants.length} <span className="hidden xs:inline">{allParticipants.length === 1 ? 'participant' : 'participants'}</span>
               </span>
               {activeSpeaker && (
                 <>
@@ -215,17 +216,17 @@ export function MeetingView({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {onMinimize && (
             <Button
               variant="secondary"
               size="sm"
               onClick={onMinimize}
-              className="h-8 sm:h-9 px-3 rounded-xl text-xs font-semibold gap-1.5"
+              className="h-8 sm:h-9 px-2 sm:px-3 rounded-xl text-xs font-semibold gap-1.5"
               title="Minimize voice call and view full room"
             >
               <Minimize2 className="w-3.5 h-3.5 text-[#7657E8]" />
-              <span>Room View</span>
+              <span className="hidden sm:inline">Room View</span>
             </Button>
           )}
           <ThemeToggle />
