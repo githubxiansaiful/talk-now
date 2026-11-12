@@ -36,9 +36,9 @@ startExpiryScheduler(30000);
 
 async function startServer() {
   await ensureDatabaseSchema();
-  httpServer.listen(ENV.PORT, () => {
-    console.log(`🚀 [TalkNow Server] Running on http://localhost:${ENV.PORT}`);
-    console.log(`🔌 [TalkNow Server] Socket.IO ready at http://localhost:${ENV.PORT}`);
+  httpServer.listen(ENV.PORT, '0.0.0.0', () => {
+    console.log(`🚀 [TalkNow Server] Running on http://0.0.0.0:${ENV.PORT}`);
+    console.log(`🔌 [TalkNow Server] Socket.IO ready on port ${ENV.PORT}`);
     console.log(`🌐 [TalkNow Server] Allowed Web Origin: ${ENV.WEB_ORIGIN}`);
   });
 }

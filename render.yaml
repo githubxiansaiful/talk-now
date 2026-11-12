@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: talknow-server
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./talknow.db
+      - key: WEB_ORIGIN
+        value: https://*.vercel.app,http://localhost:3000
+      - key: SESSION_SECRET
+        generateValue: true
