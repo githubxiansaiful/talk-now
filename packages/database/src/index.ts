@@ -1,23 +1,45 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaLibSQL } from '@prisma/adapter-libsql';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrismaClient(): PrismaClient {
+  const tursoUrl = process.env.TURSO_DATABASE_URL;
+  const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (tursoUrl) {
+    const adapter = new PrismaLibSQL({
+      url: tursoUrl,
+      authToken: tursoAuthToken,
+    });
+    return new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    });
+  }
+
+  // Fallback to local SQLite when no Turso credentials are provided
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 /**
- * Initializes SQLite pragmas (WAL mode) and ensures all required tables and indexes exist.
+ * Initializes SQLite / Turso pragmas and ensures all required tables and indexes exist.
  * Fully idempotent, sub-millisecond execution.
  */
 export async function ensureDatabaseSchema(): Promise<void> {
   try {
-    await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
-    await prisma.$queryRawUnsafe('PRAGMA synchronous = NORMAL;');
+    if (!process.env.TURSO_DATABASE_URL) {
+      try {
+        await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
+        await prisma.$queryRawUnsafe('PRAGMA synchronous = NORMAL;');
+      } catch {}
+    }
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Room" (
@@ -86,7 +108,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Reaction_memberId_idx" ON "Reaction"("memberId");`);
     await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Reaction_messageId_memberId_emoji_key" ON "Reaction"("messageId", "memberId", "emoji");`);
   } catch (error) {
-    console.error('Failed to initialize SQLite database schema:', error);
+    console.error('Failed to initialize SQLite/Turso database schema:', error);
   }
 }
 
