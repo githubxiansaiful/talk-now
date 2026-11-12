@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Message, Member } from '@talknow/shared';
 import { MessageItem } from './message-item';
-import { Lock, Share2, Phone, ChevronDown, Sparkles } from 'lucide-react';
+import { Lock, Share2, ChevronDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface MessageListProps {
@@ -12,7 +12,6 @@ interface MessageListProps {
   members?: Member[];
   onReact?: (messageId: string, emoji: string) => void;
   onOpenInvite?: () => void;
-  onOpenMeeting?: () => void;
 }
 
 export function MessageList({
@@ -21,7 +20,6 @@ export function MessageList({
   members,
   onReact,
   onOpenInvite,
-  onOpenMeeting,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -152,32 +150,19 @@ export function MessageList({
                   Room is Ready
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-4">
-                  Send the first message below or invite others to join this disposable room for real-time text and voice chat.
+                  Send the first message below or invite others to join this disposable room for real-time private group chat.
                 </p>
-                {(onOpenInvite || onOpenMeeting) && (
+                {onOpenInvite && (
                   <div className="flex items-center justify-center gap-2">
-                    {onOpenInvite && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={onOpenInvite}
-                        className="text-xs font-semibold gap-1.5 h-8 rounded-xl"
-                      >
-                        <Share2 className="w-3.5 h-3.5 text-[#7657E8]" />
-                        <span>Share Invite</span>
-                      </Button>
-                    )}
-                    {onOpenMeeting && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onOpenMeeting}
-                        className="text-xs font-semibold gap-1.5 h-8 rounded-xl border border-[var(--border)]"
-                      >
-                        <Phone className="w-3.5 h-3.5 text-[#7657E8]" />
-                        <span>Voice Call</span>
-                      </Button>
-                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={onOpenInvite}
+                      className="text-xs font-semibold gap-1.5 h-8 rounded-xl"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-[#7657E8]" />
+                      <span>Share Invite</span>
+                    </Button>
                   </div>
                 )}
               </div>

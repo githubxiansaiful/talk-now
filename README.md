@@ -14,7 +14,7 @@ Modern communication platforms (Slack, Teams, Discord, WhatsApp, Zoom) have intr
 
 - **Friction-Zero:** Anyone can generate a room in two seconds and share the link. Guests pick a temporary display name and start chatting immediately.
 - **Privacy by Design:** Nothing is permanent. Every room has an expiry countdown. When the timer expires or the creator closes the room, all messages, reactions, participants, and tokens are permanently destroyed from the database.
-- **Instant Voice & Text in One Place:** Seamlessly jump from text chatting into live voice meetings with a single click, right inside the same browser tab.
+- **Instant Real-Time Chat:** Optimistic zero-latency messaging, typing indicators, and emoji reactions right in any browser without signing up.
 
 ---
 
@@ -33,18 +33,11 @@ Modern communication platforms (Slack, Teams, Discord, WhatsApp, Zoom) have intr
 - **On-Demand Extension:** Room creators can extend active sessions whenever discussions run longer than expected.
 
 ### 💬 Real-Time Group Chat
-- **High-Speed Messaging:** Bi-directional real-time communication powered by WebSockets.
-- **Inline System Notices:** Messenger-style timeline notices when members join, leave, start calls, or end meetings (replacing intrusive popups).
+- **High-Speed Messaging:** Bi-directional real-time communication powered by WebSockets with 0ms optimistic UI rendering.
+- **Inline System Notices:** Messenger-style timeline notices when members join, leave, or room time is extended.
 - **Interactive Emoji Reactions:** React to any message with emojis, complete with live counters and member attribution.
 - **Typing Indicators:** Real-time feedback when participants are typing.
 - **Intelligent Auto-Scroll:** Smart viewport handling that stays anchored at the latest messages while keeping chat smooth on page refreshes.
-
-### 🎙️ Integrated Voice Calling
-- **One-Click Voice Meetings:** Instantly initiate a group voice call within the room without external conference links.
-- **Low-Latency WebRTC Audio:** Crystal-clear group voice powered by LiveKit SFU with smart fallback.
-- **Microphone Controls & Speaking Indicators:** Quick mute/unmute toggles with animated visual waveforms for active speakers.
-- **Smooth Chat Drawer Animation:** In-meeting sliding chat drawer that glides right-to-left, allowing participants to chat and talk simultaneously without breaking layout.
-- **Dynamic Meeting Grid:** Adaptive speaker tiles displaying avatars, participant status, and host badges.
 
 ### 🎨 Modern Responsive Interface
 - **Polished Visual Identity:** Clean theme centered around a signature purple aesthetic (`#7657E8`).
@@ -56,7 +49,7 @@ Modern communication platforms (Slack, Teams, Discord, WhatsApp, Zoom) have intr
 
 ## 🏛️ System Architecture
 
-TalkNow operates on a hybrid architecture designed for global speed and resilient WebSocket connections:
+TalkNow operates on a streamlined architecture designed for instant speed and resilient WebSocket connections:
 
 ```
 [ Web Client / Browser ]
@@ -66,7 +59,6 @@ TalkNow operates on a hybrid architecture designed for global speed and resilien
            └──► Backend Server (Node.js / Express / Socket.IO)
                      │
                      ├──► WebSocket & REST APIs (Room lifecycle, live chat, presence)
-                     ├──► LiveKit SFU (High-performance WebRTC voice routing)
                      └──► Neon PostgreSQL (Ephemeral room storage & auto-expiry engine)
 ```
 

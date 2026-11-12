@@ -15,10 +15,6 @@ import { X, WifiOff, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSocket } from '@/hooks/use-socket';
 import { apiClient } from '@/lib/api-client';
-import { useMeeting } from '@/hooks/use-meeting';
-import { MeetingBanner } from '@/components/meeting/meeting-banner';
-import { MeetingPreJoin } from '@/components/meeting/meeting-pre-join';
-import { MeetingView } from '@/components/meeting/meeting-view';
 
 interface ChatLayoutProps {
   roomCode: string;
@@ -51,7 +47,6 @@ export function ChatLayout({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
   const [isLeaveAlertOpen, setIsLeaveAlertOpen] = useState(false);
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   // Room expiry state (synced with server)
   const [currentExpiresAt, setCurrentExpiresAt] = useState(expiresAt);
@@ -61,43 +56,6 @@ export function ChatLayout({
     setPrevExpiresAt(expiresAt);
     setCurrentExpiresAt(expiresAt);
   }
-
-  // Group Audio Meeting hook
-  const {
-    meeting: activeMeeting,
-    participants: meetingParticipants,
-    isPreJoinOpen,
-    isInMeeting,
-    isMinimized,
-    setIsMinimized,
-    isStarting: isStartingMeeting,
-    isJoining: isJoiningMeeting,
-    meetingDuration,
-    permissionState: micPermissionState,
-    isMuted,
-    audioLevel,
-    audioDevices,
-    audioOutputDevices,
-    selectedAudioInput,
-    selectedAudioOutput,
-    setSelectedAudioInput,
-    setSelectedAudioOutput,
-    openPreJoin,
-    closePreJoin,
-    startLocalAudioStream,
-    toggleMute,
-    startMeeting,
-    joinMeeting,
-    leaveMeeting,
-    endMeeting,
-  } = useMeeting({
-    roomCode,
-    sessionToken,
-    creatorToken,
-    currentUser,
-    socket,
-    isConnected,
-  });
 
   // Extend room duration handler (Creator only)
   const handleExtendRoom = useCallback(
@@ -343,9 +301,6 @@ export function ChatLayout({
       // Play received message tune if from other members and not a system notice
       if (msg.memberId !== currentUser.id && msg.messageType !== 'SYSTEM') {
         playReceivedSound();
-        if (isInMeeting && !isMinimized) {
-          setUnreadChatCount((count) => count + 1);
-        }
       }
     };
 
@@ -493,7 +448,7 @@ export function ChatLayout({
       socket.off(SOCKET_EVENTS.ROOM_CLOSED, handleRoomExpired);
       socket.off(SOCKET_EVENTS.ROOM_TIME_EXTENDED, handleRoomTimeExtended);
     };
-  }, [socket, roomCode, sessionToken, currentUser.id, currentUser.isCreator, router, isInMeeting, isMinimized, members]);
+  }, [socket, roomCode, sessionToken, currentUser.id, currentUser.isCreator, router, members]);
 
   // Handle sending a message
   const handleSendMessage = (content: string) => {
@@ -623,56 +578,6 @@ export function ChatLayout({
     router.push('/expired');
   };
 
-  // If in meeting and NOT minimized, render full meeting view
-  if (isInMeeting && activeMeeting && !isMinimized) {
-    return (
-      <MeetingView
-        meeting={activeMeeting}
-        participants={meetingParticipants}
-        roomName={roomName}
-        roomCode={roomCode}
-        currentUser={currentUser}
-        duration={meetingDuration}
-        isMuted={isMuted}
-        onToggleMute={toggleMute}
-        audioLevel={audioLevel}
-        audioDevices={audioDevices}
-        audioOutputDevices={audioOutputDevices}
-        selectedAudioInput={selectedAudioInput}
-        selectedAudioOutput={selectedAudioOutput}
-        onSelectAudioInput={setSelectedAudioInput}
-        onSelectAudioOutput={setSelectedAudioOutput}
-        onLeaveMeeting={leaveMeeting}
-        onEndMeeting={endMeeting}
-        onMinimize={() => setIsMinimized(true)}
-        unreadChatCount={unreadChatCount}
-        onClearUnreadChat={() => setUnreadChatCount(0)}
-        chatDrawerNode={
-          <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)] relative">
-            <div className="absolute inset-0 chat-wallpaper" />
-            <div className="flex-1 flex flex-col min-h-0 relative z-10">
-              <MessageList
-                messages={messages}
-                currentMemberId={currentUser.id}
-                members={members}
-                onReact={handleReact}
-                onOpenInvite={() => setIsShareOpen(true)}
-              />
-            </div>
-            <div className="p-3 border-t border-[var(--border)] bg-[var(--surface)] relative z-10">
-              <MessageComposer
-                onSendMessage={handleSendMessage}
-                onTypingStart={handleTypingStart}
-                onTypingStop={handleTypingStop}
-                disabled={!isConnected}
-              />
-            </div>
-          </div>
-        }
-      />
-    );
-  }
-
   return (
     <div className="fixed inset-0 flex flex-col w-full h-[100dvh] overflow-hidden bg-[var(--background)]">
       {/* Header */}
@@ -682,10 +587,6 @@ export function ChatLayout({
         expiresAt={currentExpiresAt}
         memberCount={members.filter((m) => m.isOnline).length}
         isCreator={currentUser.isCreator}
-        activeMeeting={activeMeeting}
-        isInMeeting={isInMeeting}
-        onOpenMeeting={openPreJoin}
-        onMaximizeMeeting={() => setIsMinimized(false)}
         typingUsers={typingUsers}
         onOpenInvite={() => setIsShareOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -693,20 +594,6 @@ export function ChatLayout({
         onBackClick={() => setIsLeaveAlertOpen(true)}
         onExpire={handleExpire}
       />
-
-      {/* Active Meeting Banner: Shows either Join Call banner or Minimized In-Call bar */}
-      {activeMeeting && (
-        <MeetingBanner
-          meeting={activeMeeting}
-          isConnectedInCall={isInMeeting}
-          isMuted={isMuted}
-          duration={meetingDuration}
-          onJoinClick={openPreJoin}
-          onExpandCall={() => setIsMinimized(false)}
-          onToggleMute={toggleMute}
-          onLeaveCall={leaveMeeting}
-        />
-      )}
 
       {/* Reconnecting banner if socket disconnects */}
       {!isConnected && (
@@ -724,7 +611,6 @@ export function ChatLayout({
             members={members}
             currentMemberId={currentUser.id}
             maxMembers={maxMembers}
-            meetingParticipants={meetingParticipants}
             onOpenInvite={() => setIsShareOpen(true)}
           />
         </aside>
@@ -765,7 +651,6 @@ export function ChatLayout({
                 members={members}
                 currentMemberId={currentUser.id}
                 maxMembers={maxMembers}
-                meetingParticipants={meetingParticipants}
                 onOpenInvite={() => {
                   setIsMobileMembersOpen(false);
                   setIsShareOpen(true);
@@ -787,7 +672,6 @@ export function ChatLayout({
             members={members}
             onReact={handleReact}
             onOpenInvite={() => setIsShareOpen(true)}
-            onOpenMeeting={openPreJoin}
           />
 
           {/* Rate limit / rejection banner */}
@@ -863,31 +747,6 @@ export function ChatLayout({
           </div>
         </div>
       )}
-
-      {/* Meeting Pre-Join Screen Modal */}
-      <MeetingPreJoin
-        isOpen={isPreJoinOpen}
-        onClose={closePreJoin}
-        meeting={activeMeeting}
-        roomName={roomName}
-        roomCode={roomCode}
-        displayName={currentUser.displayName}
-        isMuted={isMuted}
-        onToggleMute={toggleMute}
-        audioLevel={audioLevel}
-        permissionState={micPermissionState}
-        audioDevices={audioDevices}
-        audioOutputDevices={audioOutputDevices}
-        selectedAudioInput={selectedAudioInput}
-        selectedAudioOutput={selectedAudioOutput}
-        onSelectAudioInput={setSelectedAudioInput}
-        onSelectAudioOutput={setSelectedAudioOutput}
-        onRetryPermission={() => startLocalAudioStream(selectedAudioInput)}
-        onStartMeeting={startMeeting}
-        onJoinMeeting={joinMeeting}
-        isStarting={isStartingMeeting}
-        isJoining={isJoiningMeeting}
-      />
     </div>
   );
 }

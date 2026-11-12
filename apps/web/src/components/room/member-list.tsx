@@ -1,7 +1,7 @@
 'use client';
 
-import { Member, MeetingParticipant } from '@talknow/shared';
-import { Crown, Users, Volume2, UserPlus } from 'lucide-react';
+import { Member } from '@talknow/shared';
+import { Crown, Users, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +26,6 @@ interface MemberListProps {
   members: Member[];
   currentMemberId?: string;
   maxMembers?: number | null;
-  meetingParticipants?: MeetingParticipant[];
   onOpenInvite?: () => void;
 }
 
@@ -34,7 +33,6 @@ export function MemberList({
   members,
   currentMemberId,
   maxMembers,
-  meetingParticipants = [],
   onOpenInvite,
 }: MemberListProps) {
   const onlineCount = members.filter((m) => m.isOnline).length;
@@ -71,7 +69,6 @@ export function MemberList({
           const isCurrentUser = member.id === currentMemberId;
           const initial = member.displayName.charAt(0).toUpperCase();
           const avatarColor = getAvatarColor(member.id || member.displayName);
-          const inCall = meetingParticipants.some((p) => p.memberId === member.id);
 
           return (
             <div
@@ -109,16 +106,6 @@ export function MemberList({
 
               {/* Status badges */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {inCall && (
-                  <span
-                    title="In voice call"
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold"
-                  >
-                    <Volume2 className="w-3 h-3 animate-pulse" />
-                    <span className="hidden sm:inline">Call</span>
-                  </span>
-                )}
-
                 {member.isCreator && (
                   <div
                     title="Room Creator"

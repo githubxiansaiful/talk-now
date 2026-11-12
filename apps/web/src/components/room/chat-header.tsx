@@ -5,9 +5,8 @@ import { AppLogo } from '@/components/common/app-logo';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { RoomExpiryLabel } from './room-expiry-label';
-import { Share2, Settings, Users, ArrowLeft, Phone, Copy, Check } from 'lucide-react';
+import { Share2, Settings, Users, ArrowLeft, Copy, Check } from 'lucide-react';
 import { formatRemainingTime } from '@/lib/utils';
-import { Meeting } from '@talknow/shared';
 import { toast } from 'sonner';
 
 interface ChatHeaderProps {
@@ -16,10 +15,6 @@ interface ChatHeaderProps {
   expiresAt: string;
   memberCount: number;
   isCreator?: boolean;
-  activeMeeting?: Meeting | null;
-  isInMeeting?: boolean;
-  onOpenMeeting?: () => void;
-  onMaximizeMeeting?: () => void;
   typingUsers?: string[];
   onOpenInvite: () => void;
   onOpenSettings: () => void;
@@ -34,10 +29,6 @@ export function ChatHeader({
   expiresAt,
   memberCount,
   isCreator,
-  activeMeeting,
-  isInMeeting = false,
-  onOpenMeeting,
-  onMaximizeMeeting,
   typingUsers,
   onOpenInvite,
   onOpenSettings,
@@ -164,39 +155,6 @@ export function ChatHeader({
             <RoomExpiryLabel expiresAt={expiresAt} onExpire={onExpire} />
           </button>
         </div>
-
-        {/* Voice Call Button */}
-        {(onOpenMeeting || onMaximizeMeeting) && (
-          <Button
-            size="sm"
-            onClick={isInMeeting && onMaximizeMeeting ? onMaximizeMeeting : onOpenMeeting}
-            className={`text-xs font-semibold gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-xl transition-all cursor-pointer ${
-              isInMeeting
-                ? 'bg-[#7657E8] hover:bg-[#6545db] text-white shadow-sm shadow-[#7657E8]/20'
-                : activeMeeting
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20'
-                  : 'bg-[#7657E8]/10 hover:bg-[#7657E8]/18 text-[#7657E8] border border-[#7657E8]/25'
-            }`}
-            title={
-              isInMeeting
-                ? 'Return to full voice call screen'
-                : activeMeeting
-                  ? 'Join active voice call'
-                  : 'Start group voice call'
-            }
-          >
-            <Phone className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {isInMeeting ? 'In Call' : activeMeeting ? 'Join Call' : 'Voice Call'}
-            </span>
-            {activeMeeting && (
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-              </span>
-            )}
-          </Button>
-        )}
 
         {/* Invite button */}
         <Button

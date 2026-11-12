@@ -13,7 +13,7 @@ export const ROOM_CONSTANTS = {
 
 export const ROOM_DURATIONS = [
   { label: '30 minutes', value: 30, description: 'Quick sprint or sync' },
-  { label: '1 hour', value: 60, description: 'Standard group meeting (Recommended)' },
+  { label: '1 hour', value: 60, description: 'Standard group chat (Recommended)' },
   { label: '6 hours', value: 360, description: 'Extended working session' },
   { label: '24 hours', value: 1440, description: 'Full day collaboration' },
 ] as const;

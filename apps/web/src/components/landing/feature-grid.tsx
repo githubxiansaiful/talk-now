@@ -5,7 +5,6 @@ import {
   Clock,
   ShieldCheck,
   Smartphone,
-  PhoneCall,
   ArrowRight,
   Sliders,
   Share2,
@@ -33,9 +32,9 @@ export function FeatureGrid() {
     {
       step: '03',
       icon: MessagesSquare,
-      title: 'Chat & talk in real time',
+      title: 'Chat in real time',
       description:
-        'Invited participants enter a display name and join immediately in their browser—with instant text messaging, emoji reactions, and live group audio calls.',
+        'Invited participants enter a display name and join immediately in their browser—with instant text messaging, typing indicators, and emoji reactions.',
     },
   ];
 
@@ -53,13 +52,6 @@ export function FeatureGrid() {
       title: 'Self-expiring rooms & data purge',
       description:
         'Every room operates on a strict countdown clock. Once the timer expires or the creator closes the room, all messages and member sessions are permanently deleted.',
-    },
-    {
-      icon: PhoneCall,
-      tag: 'Live Audio',
-      title: 'Built-in group voice calling',
-      description:
-        'Launch a low-latency WebRTC audio meeting inside any active room with one click—complete with mute controls, active speaker indicators, and zero call recording.',
     },
     {
       icon: Zap,
@@ -88,7 +80,7 @@ export function FeatureGrid() {
     {
       question: 'How do temporary chat rooms work on TalkNow?',
       answer:
-        'When you create a room, you select a lifespan between 30 minutes and 24 hours. TalkNow generates a unique private link that you can share with anyone. While the room is active, members can exchange real-time text messages and join live audio calls.',
+        'When you create a room, you select a lifespan between 30 minutes and 24 hours. TalkNow generates a unique private link that you can share with anyone. While the room is active, members can exchange real-time text messages and emoji reactions.',
     },
     {
       question: 'Do participants need to register an account or install an app?',
@@ -96,14 +88,14 @@ export function FeatureGrid() {
         'No. TalkNow runs entirely in modern web browsers on desktop and mobile. Visitors simply open your invitation link, enter a temporary display name for that session, and join the conversation immediately.',
     },
     {
-      question: 'What happens to messages and audio when the room timer expires?',
+      question: 'What happens to messages when the room timer expires?',
       answer:
         'When a room reaches its expiration time—or when the room creator manually closes it—active connections are terminated and automated cleanup jobs permanently purge all messages, reactions, and participant records from the database.',
     },
     {
-      question: 'Are group voice calls recorded or stored?',
+      question: 'Is any personal data retained?',
       answer:
-        'Never. Live audio meetings stream strictly in real time between active room participants and are never recorded, transcribed, or archived.',
+        'Never. We do not require accounts, email addresses, or phone numbers. All conversation data is permanently deleted when the room expires.',
     },
   ];
 

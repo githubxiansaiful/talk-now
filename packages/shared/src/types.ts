@@ -79,36 +79,3 @@ export interface RoomJoinResponse {
   messages: Message[];
   members: Member[];
 }
-
-export type MeetingStatus = 'ACTIVE' | 'ENDED';
-
-export interface Meeting {
-  id: string;
-  roomId: string;
-  status: MeetingStatus;
-  hostMemberId: string;
-  hostDisplayName?: string;
-  startedAt: string;
-  endedAt?: string | null;
-  participantCount?: number;
-}
-
-export interface MeetingParticipant {
-  id: string;
-  meetingId: string;
-  memberId: string;
-  displayName: string;
-  isHost: boolean;
-  isMuted: boolean;
-  isSpeaking: boolean;
-  joinedAt: string;
-}
-
-export interface MeetingTokenResponse {
-  token: string;
-  serverUrl: string;
-  meetingId: string;
-  participantId: string;
-  displayName: string;
-  isHost: boolean;
-}

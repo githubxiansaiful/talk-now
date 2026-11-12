@@ -1,10 +1,9 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { SOCKET_EVENTS, Member, Meeting, MeetingParticipant, Message } from '@talknow/shared';
+import { SOCKET_EVENTS, Member, Message } from '@talknow/shared';
 import { ENV } from '../config/env';
 import { roomRepository } from '../modules/rooms/room.repository';
 import { messageService } from '../modules/messages/message.service';
-import { meetingRepository } from '../modules/meetings/meeting.repository';
 import { hashToken } from '../utils/room-code';
 import { prisma } from '../lib/prisma';
 import { checkSocketMessageRateLimit } from '../middleware/rate-limit';
@@ -33,14 +32,12 @@ export function broadcastNewMessage(roomCode: string, message: Message): void {
 export function broadcastRoomClosed(roomCode: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_CLOSED, { roomCode });
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode });
   }
 }
 
 export function broadcastRoomExpired(roomCode: string): void {
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_EXPIRED, { roomCode });
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode });
   }
 }
 
@@ -48,126 +45,6 @@ export function broadcastRoomTimeExtended(roomCode: string, expiresAt: string): 
   if (ioInstance) {
     ioInstance.to(roomCode).emit(SOCKET_EVENTS.ROOM_TIME_EXTENDED, { roomCode, expiresAt });
   }
-}
-
-export function broadcastMeetingStarted(roomCode: string, meeting: Meeting, starterDisplayName?: string): void {
-  if (ioInstance) {
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_STARTED, { roomCode, meeting });
-  }
-
-  const content = starterDisplayName
-    ? `${starterDisplayName} started a voice call`
-    : 'Voice call started';
-
-  messageService
-    .sendSystemMessage({
-      roomId: meeting.roomId,
-      memberId: meeting.hostMemberId,
-      content,
-    })
-    .then((sysMsg) => {
-      broadcastNewMessage(roomCode, sysMsg);
-    })
-    .catch((err) => {
-      console.error('[Socket] Error creating meeting started system message:', err);
-    });
-}
-
-export function broadcastMeetingEnded(roomCode: string, meetingId: string, endedByName?: string): void {
-  if (ioInstance) {
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_ENDED, { roomCode, meetingId });
-  }
-
-  meetingRepository
-    .getMeetingById(meetingId)
-    .then((meeting) => {
-      if (!meeting) return;
-      const content = endedByName ? `${endedByName} ended the voice call` : 'Voice call ended';
-      return messageService.sendSystemMessage({
-        roomId: meeting.roomId,
-        memberId: meeting.hostMemberId,
-        content,
-      });
-    })
-    .then((sysMsg) => {
-      if (sysMsg) {
-        broadcastNewMessage(roomCode, sysMsg);
-      }
-    })
-    .catch((err) => {
-      console.error('[Socket] Error creating meeting ended system message:', err);
-    });
-}
-
-export function broadcastMeetingParticipantJoined(
-  roomCode: string,
-  payload: { meetingId: string; participant: MeetingParticipant; participantCount: number }
-): void {
-  if (ioInstance) {
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_JOINED, payload);
-  }
-
-  if (!payload.participant.isHost) {
-    meetingRepository
-      .getMeetingById(payload.meetingId)
-      .then((meeting) => {
-        if (!meeting) return;
-        return messageService.sendSystemMessage({
-          roomId: meeting.roomId,
-          memberId: payload.participant.memberId,
-          content: `${payload.participant.displayName} joined the voice call`,
-        });
-      })
-      .then((sysMsg) => {
-        if (sysMsg) {
-          broadcastNewMessage(roomCode, sysMsg);
-        }
-      })
-      .catch((err) => {
-        console.error('[Socket] Error creating participant joined system message:', err);
-      });
-  }
-}
-
-export function broadcastMeetingParticipantLeft(
-  roomCode: string,
-  payload: { meetingId: string; memberId: string; displayName?: string }
-): void {
-  if (ioInstance) {
-    ioInstance.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_LEFT, {
-      meetingId: payload.meetingId,
-      memberId: payload.memberId,
-    });
-  }
-
-  meetingRepository
-    .getMeetingById(payload.meetingId)
-    .then(async (meeting) => {
-      if (!meeting || meeting.status !== 'ACTIVE') return;
-
-      let name = payload.displayName;
-      if (!name) {
-        const member = await prisma.member.findUnique({
-          where: { id: payload.memberId },
-          select: { displayName: true },
-        });
-        name = member?.displayName || 'Someone';
-      }
-
-      return messageService.sendSystemMessage({
-        roomId: meeting.roomId,
-        memberId: payload.memberId,
-        content: `${name} left the voice call`,
-      });
-    })
-    .then((sysMsg) => {
-      if (sysMsg) {
-        broadcastNewMessage(roomCode, sysMsg);
-      }
-    })
-    .catch((err) => {
-      console.error('[Socket] Error creating participant left system message:', err);
-    });
 }
 
 export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
@@ -201,7 +78,7 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
      */
     socket.on(
       SOCKET_EVENTS.ROOM_JOIN,
-      async (data: { roomCode: string; sessionToken: string; displayName?: string }) => {
+      async (data: { roomCode: string; sessionToken: string }) => {
         try {
           const { roomCode, sessionToken } = data || {};
           if (!roomCode || !sessionToken) {
@@ -209,42 +86,19 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
             return;
           }
 
-          const room = await roomRepository.findByCode(roomCode);
-          if (!room) {
-            socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Room not found' });
+          // Fast verify room & session
+          const verified = await roomRepository.verifySessionAndRoom(roomCode, sessionToken);
+          if (!verified) {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Invalid session or room has expired' });
             return;
           }
 
-          if (room.status !== 'ACTIVE') {
-            socket.emit(SOCKET_EVENTS.ROOM_EXPIRED, { message: `Room is ${room.status.toLowerCase()}` });
-            return;
-          }
+          const { room, member: memberRecord } = verified;
 
-          // Verify session token
-          const tokenHash = hashToken(sessionToken);
-          const memberRecord = await prisma.member.findFirst({
-            where: {
-              roomId: room.id,
-              sessionTokenHash: tokenHash,
-              leftAt: null,
-            },
-          });
-
-          if (!memberRecord) {
-            socket.emit(SOCKET_EVENTS.ROOM_ERROR, { message: 'Invalid or expired member session' });
-            return;
-          }
-
-          // Update member lastSeenAt
-          await prisma.member.update({
-            where: { id: memberRecord.id },
-            data: { lastSeenAt: new Date() },
-          });
-
-          // Join Socket.IO room channel
+          // Join Socket.io room channel
           socket.join(roomCode);
 
-          // Save socket session
+          // Save session mapping
           const session: SocketSession = {
             roomId: room.id,
             roomCode,
@@ -287,30 +141,14 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
           // Acknowledge join to connecting socket
           socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
             room,
-            member: {
-              id: memberRecord.id,
-              roomId: room.id,
-              displayName: memberRecord.displayName,
-              joinedAt: memberRecord.joinedAt.toISOString(),
-              lastSeenAt: memberRecord.lastSeenAt.toISOString(),
-              isCreator: memberRecord.isCreator,
-              isOnline: true,
-            },
+            member: memberRecord,
             messages: recentMessages,
             members: formattedMembers,
           });
 
           // Broadcast to other room members
           socket.to(roomCode).emit(SOCKET_EVENTS.ROOM_MEMBER_JOINED, {
-            member: {
-              id: memberRecord.id,
-              roomId: room.id,
-              displayName: memberRecord.displayName,
-              joinedAt: memberRecord.joinedAt.toISOString(),
-              lastSeenAt: memberRecord.lastSeenAt.toISOString(),
-              isCreator: memberRecord.isCreator,
-              isOnline: true,
-            },
+            member: memberRecord,
           });
 
           socket.to(roomCode).emit(SOCKET_EVENTS.PRESENCE_UPDATE, {
@@ -484,104 +322,6 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
     );
 
     /**
-     * Meeting State Request Event
-     */
-    socket.on(
-      SOCKET_EVENTS.MEETING_STATE_REQUEST,
-      async (data: { roomCode: string }) => {
-        try {
-          const { roomCode } = data || {};
-          const session = socketSessions.get(socket.id);
-          if (!session || session.roomCode !== roomCode) return;
-
-          const activeMeeting = await meetingRepository.getActiveMeeting(session.roomId);
-          if (!activeMeeting) {
-            socket.emit(SOCKET_EVENTS.MEETING_STATE, { meeting: null, participants: [] });
-            return;
-          }
-
-          const participants = await meetingRepository.getActiveParticipants(activeMeeting.id);
-          socket.emit(SOCKET_EVENTS.MEETING_STATE, {
-            meeting: activeMeeting,
-            participants,
-          });
-        } catch (error) {
-          console.error('[Socket] Error fetching meeting state:', error);
-        }
-      }
-    );
-
-    /**
-     * Meeting Audio State Event (mute, speaking)
-     */
-    socket.on(
-      SOCKET_EVENTS.MEETING_AUDIO_STATE,
-      (data: { roomCode: string; meetingId: string; isMuted: boolean; isSpeaking: boolean }) => {
-        const { roomCode, meetingId, isMuted, isSpeaking } = data || {};
-        const session = socketSessions.get(socket.id);
-        if (!session || session.roomCode !== roomCode) return;
-
-        io.to(roomCode).emit(SOCKET_EVENTS.MEETING_PARTICIPANT_UPDATED, {
-          meetingId,
-          memberId: session.memberId,
-          displayName: session.displayName,
-          isMuted: Boolean(isMuted),
-          isSpeaking: Boolean(isSpeaking),
-        });
-      }
-    );
-
-    /**
-     * Meeting WebRTC Signaling (peer-to-peer audio mesh)
-     */
-    socket.on(
-      SOCKET_EVENTS.MEETING_SIGNAL,
-      (data: {
-        roomCode: string;
-        meetingId?: string;
-        targetMemberId?: string;
-        signal: unknown;
-      }) => {
-        const { roomCode, meetingId, targetMemberId, signal } = data || {};
-        const session = socketSessions.get(socket.id);
-        if (!session || session.roomCode !== roomCode) return;
-
-        socket.to(roomCode).emit(SOCKET_EVENTS.MEETING_SIGNAL, {
-          roomCode,
-          meetingId,
-          senderMemberId: session.memberId,
-          targetMemberId,
-          signal,
-        });
-      }
-    );
-
-    /**
-     * Meeting Leave Event
-     */
-    socket.on(
-      SOCKET_EVENTS.MEETING_LEAVE,
-      async (data: { roomCode: string; meetingId: string }) => {
-        try {
-          const { roomCode, meetingId } = data || {};
-          const session = socketSessions.get(socket.id);
-          if (!session || session.roomCode !== roomCode) return;
-
-          const actuallyLeft = await meetingRepository.leaveMeeting(meetingId, session.memberId);
-          if (actuallyLeft) {
-            broadcastMeetingParticipantLeft(roomCode, {
-              meetingId,
-              memberId: session.memberId,
-              displayName: session.displayName,
-            });
-          }
-        } catch (error) {
-          console.error('[Socket] Error leaving meeting:', error);
-        }
-      }
-    );
-
-    /**
      * Disconnect Event
      */
     socket.on('disconnect', () => {
@@ -600,23 +340,6 @@ export function initializeSocketServer(httpServer: HttpServer): SocketIOServer {
             memberId,
             isOnline: false,
           });
-
-          // Clean up active meeting participant
-          meetingRepository
-            .getActiveMeeting(session.roomId)
-            .then(async (activeMeeting) => {
-              if (activeMeeting) {
-                const actuallyLeft = await meetingRepository.leaveMeeting(activeMeeting.id, memberId);
-                if (actuallyLeft) {
-                  broadcastMeetingParticipantLeft(roomCode, {
-                    meetingId: activeMeeting.id,
-                    memberId,
-                    displayName: session.displayName,
-                  });
-                }
-              }
-            })
-            .catch(() => {});
         }
       }
     });

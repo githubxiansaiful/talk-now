@@ -9,13 +9,6 @@ export const SOCKET_EVENTS = {
   ROOM_CLOSE: 'room:close',
   ROOM_EXTEND: 'room:extend',
   MESSAGE_REACT: 'message:react',
-  MEETING_START: 'meeting:start',
-  MEETING_JOIN: 'meeting:join',
-  MEETING_LEAVE: 'meeting:leave',
-  MEETING_END: 'meeting:end',
-  MEETING_STATE_REQUEST: 'meeting:state:request',
-  MEETING_AUDIO_STATE: 'meeting:audio:state',
-  MEETING_SIGNAL: 'meeting:signal',
 
   // Server to Client
   ROOM_JOINED: 'room:joined',
@@ -31,13 +24,6 @@ export const SOCKET_EVENTS = {
   ROOM_EXPIRED: 'room:expired',
   ROOM_TIME_EXTENDED: 'room:time_extended',
   PRESENCE_UPDATE: 'presence:update',
-  MEETING_STARTED: 'meeting:started',
-  MEETING_STATE: 'meeting:state',
-  MEETING_PARTICIPANT_JOINED: 'meeting:participant:joined',
-  MEETING_PARTICIPANT_LEFT: 'meeting:participant:left',
-  MEETING_PARTICIPANT_UPDATED: 'meeting:participant:updated',
-  MEETING_ENDED: 'meeting:ended',
-  MEETING_ERROR: 'meeting:error',
 } as const;
 
 export type SocketEventName = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];

@@ -14,7 +14,4 @@ export const ENV = {
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   SESSION_SECRET: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   IS_PROD: process.env.NODE_ENV === 'production',
-  LIVEKIT_URL: process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || '',
-  LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY || '',
-  LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET || '',
 };

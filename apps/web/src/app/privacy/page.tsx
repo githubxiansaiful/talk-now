@@ -75,22 +75,6 @@ export default function PrivacyPage() {
               TalkNow uses zero tracking or analytics cookies. We use temporary session tokens solely to keep your socket connection authenticated while you are in a room.
             </p>
           </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-bold text-[var(--text)] flex items-center gap-2">
-              <Shield className="w-5 h-5 text-[#7657E8]" />
-              5. Audio Meetings & Live Media Processing
-            </h2>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-              TalkNow allows room participants to initiate and join group audio meetings. Live audio is processed strictly in real-time to relay conversation between authorized room participants using WebRTC / SFU media routing.
-            </p>
-            <ul className="list-disc pl-5 text-sm text-[var(--text-secondary)] space-y-1.5">
-              <li>Calls are never recorded under any circumstances.</li>
-              <li>Microphone audio is never saved, archived, or transcribed.</li>
-              <li>Microphone access is requested only when you voluntarily join an audio call, and is immediately revoked upon leaving.</li>
-              <li>When the parent room closes or expires, active media sessions terminate immediately.</li>
-            </ul>
-          </section>
         </div>
       </main>
       <SiteFooter />
