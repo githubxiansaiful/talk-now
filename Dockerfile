@@ -24,6 +24,7 @@ COPY apps/server ./apps/server
 # Build shared, generate prisma client, build database, build server
 RUN pnpm --filter @talknow/shared build
 RUN pnpm --filter @talknow/database db:generate
+RUN pnpm --filter @talknow/database db:push
 RUN pnpm --filter @talknow/database build
 RUN pnpm --filter @talknow/server build
 

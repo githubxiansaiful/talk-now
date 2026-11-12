@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -7,36 +7,19 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum RoomStatus {
-  ACTIVE
-  EXPIRED
-  CLOSED
-}
-
-enum MeetingStatus {
-  ACTIVE
-  ENDED
-}
-
-enum MessageType {
-  TEXT
-  SYSTEM
-}
-
 model Room {
-  id               String      @id @default(uuid())
-  code             String      @unique
+  id               String    @id @default(uuid())
+  code             String    @unique
   name             String?
   creatorTokenHash String
-  status           RoomStatus  @default(ACTIVE)
+  status           String    @default("ACTIVE")
   maxMembers       Int?
-  createdAt        DateTime    @default(now())
+  createdAt        DateTime  @default(now())
   expiresAt        DateTime
   closedAt         DateTime?
 
   members          Member[]
   messages         Message[]
-  meetings         Meeting[]
 
   @@index([code])
   @@index([expiresAt])
@@ -56,56 +39,23 @@ model Member {
   room             Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
   messages         Message[]
   reactions        Reaction[]
-  hostedMeetings   Meeting[]            @relation("MeetingHost")
-  meetingParticipations MeetingParticipant[]
 
   @@index([roomId])
   @@index([sessionTokenHash])
 }
 
-model Meeting {
-  id             String               @id @default(uuid())
-  roomId         String
-  status         MeetingStatus        @default(ACTIVE)
-  hostMemberId   String
-  startedAt      DateTime             @default(now())
-  endedAt        DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-
-  room           Room                 @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  hostMember     Member               @relation("MeetingHost", fields: [hostMemberId], references: [id], onDelete: Cascade)
-  participants   MeetingParticipant[]
-
-  @@index([roomId, status])
-}
-
-model MeetingParticipant {
-  id          String    @id @default(uuid())
-  meetingId   String
-  memberId    String
-  joinedAt    DateTime  @default(now())
-  leftAt      DateTime?
-
-  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-
-  @@index([meetingId])
-  @@index([memberId])
-}
-
 model Message {
-  id          String      @id @default(uuid())
+  id          String    @id @default(uuid())
   roomId      String
   memberId    String
   content     String
-  messageType MessageType @default(TEXT)
-  createdAt   DateTime    @default(now())
+  messageType String    @default("TEXT")
+  createdAt   DateTime  @default(now())
   editedAt    DateTime?
   deletedAt   DateTime?
 
-  room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  member      Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  room        Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  member      Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
   reactions   Reaction[]
 
   @@index([roomId, createdAt])

@@ -1,6 +1,7 @@
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
+import { ensureDatabaseSchema } from '@talknow/database';
 import { ENV } from './config/env';
 import { corsOptions } from './config/cors';
 import { initializeSocketServer } from './socket';
@@ -33,10 +34,15 @@ initializeSocketServer(httpServer);
 // Start background room expiry scheduler
 startExpiryScheduler(30000);
 
-httpServer.listen(ENV.PORT, () => {
-  console.log(`🚀 [TalkNow Server] Running on http://localhost:${ENV.PORT}`);
-  console.log(`🔌 [TalkNow Server] Socket.IO ready at http://localhost:${ENV.PORT}`);
-  console.log(`🌐 [TalkNow Server] Allowed Web Origin: ${ENV.WEB_ORIGIN}`);
-});
+async function startServer() {
+  await ensureDatabaseSchema();
+  httpServer.listen(ENV.PORT, () => {
+    console.log(`🚀 [TalkNow Server] Running on http://localhost:${ENV.PORT}`);
+    console.log(`🔌 [TalkNow Server] Socket.IO ready at http://localhost:${ENV.PORT}`);
+    console.log(`🌐 [TalkNow Server] Allowed Web Origin: ${ENV.WEB_ORIGIN}`);
+  });
+}
+
+startServer();
 
 export { app, httpServer };
